@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"bytes"
@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/djalben/epn-killer-mvp/internal/core"
 	"github.com/djalben/epn-killer-mvp/internal/models"
+	"github.com/djalben/epn-killer-mvp/internal/usecases"
 	"github.com/shopspring/decimal"
 )
 
@@ -21,27 +21,27 @@ func TestAuthorizeCardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Преобразование модели запроса в модель Core
-	coreReq := core.AuthorizeCardRequest{
-        CardID: req.CardID,
-        Amount: req.Amount,
-        MerchantName: req.MerchantName, 
-    }
+	// 1. Преобразование модели запроса в модель Usecases
+	usecasesReq := usecases.AuthorizeCardRequest{
+		CardID:       req.CardID,
+		Amount:       req.Amount,
+		MerchantName: req.MerchantName,
+	}
 
-	// 2. Вызов функции Core с правильной структурой-аргументом
-	response := core.AuthorizeCard(coreReq) 
+	// 2. Вызов функции Usecases с правильной структурой-аргументом
+	response := usecases.AuthorizeCard(usecasesReq)
 
 	// 3. Возвращение результата
 	statusCode := http.StatusOK
-    if !response.Success {
-        statusCode = http.StatusPaymentRequired 
-    }
-	
+	if !response.Success {
+		statusCode = http.StatusPaymentRequired
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode response: %v", err)
-    }
+	}
 }
 
 // TestAuthorizeCard - Базовый тест (заглушка)
@@ -56,9 +56,9 @@ func TestAuthorizeCard(t *testing.T) {
 
 	// Создаем тестовый ResponseRecorder
 	rr := httptest.NewRecorder()
-	
-	// Вызываем хендлер 
-	TestAuthorizeCardHandler(rr, req) 
+
+	// Вызываем хендлер
+	TestAuthorizeCardHandler(rr, req)
 
 	// Проверяем статус код (ожидаем 402, так как баланс пустой)
 	if status := rr.Code; status != http.StatusPaymentRequired {

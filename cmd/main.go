@@ -8,14 +8,14 @@ import (
 	"os"
 
 	"github.com/gorilla/mux"
-	"github.com/rs/cors"
 	_ "github.com/lib/pq"
+	"github.com/rs/cors"
 
-	"github.com/djalben/epn-killer-mvp/internal/handlers"
+	api "github.com/djalben/epn-killer-mvp/internal/api"
 	"github.com/djalben/epn-killer-mvp/internal/middleware"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
-	"github.com/djalben/epn-killer-mvp/internal/core"
 	"github.com/djalben/epn-killer-mvp/internal/telegram"
+	"github.com/djalben/epn-killer-mvp/internal/usecases"
 )
 
 var DB *sql.DB
@@ -37,7 +37,7 @@ func main() {
 		log.Fatalf("Error connecting to database: %v", err)
 	}
 
-	handlers.GlobalDB = DB
+	api.GlobalDB = DB
 	repository.GlobalDB = DB
 
 	log.Println("Successfully connected to the database!")
@@ -47,37 +47,37 @@ func main() {
 		log.Println("Telegram bot token set: real notifications enabled")
 	}
 
-	go core.StartAutoReplenishmentWorker()
+	go usecases.StartAutoReplenishmentWorker()
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/health", handlers.HealthCheckHandler).Methods("GET")
-	router.HandleFunc("/api/v1/auth/register", handlers.RegisterHandler).Methods("POST")
-	router.HandleFunc("/api/v1/auth/login", handlers.LoginHandler).Methods("POST")
+	router.HandleFunc("/health", api.HealthCheckHandler).Methods("GET")
+	router.HandleFunc("/api/v1/auth/register", api.RegisterHandler).Methods("POST")
+	router.HandleFunc("/api/v1/auth/login", api.LoginHandler).Methods("POST")
 
 	protectedRouter := router.PathPrefix("/api/v1/user").Subrouter()
 	protectedRouter.Use(middleware.JWTAuthMiddleware)
 
-	protectedRouter.HandleFunc("/me", handlers.GetMeHandler).Methods("GET")
-	protectedRouter.HandleFunc("/grade", handlers.GetUserGradeHandler).Methods("GET")
-	protectedRouter.HandleFunc("/deposit", handlers.ProcessDepositHandler).Methods("POST")
-	protectedRouter.HandleFunc("/cards", handlers.GetUserCardsHandler).Methods("GET")
-	protectedRouter.HandleFunc("/cards/issue", handlers.MassIssueCardsHandler).Methods("POST")
-	protectedRouter.HandleFunc("/cards/{id}/status", handlers.PatchCardStatusHandler).Methods("PATCH")
-	protectedRouter.HandleFunc("/cards/{id}/auto-replenishment", handlers.SetCardAutoReplenishmentHandler).Methods("POST")
-	protectedRouter.HandleFunc("/cards/{id}/auto-replenishment", handlers.UnsetCardAutoReplenishmentHandler).Methods("DELETE")
-	protectedRouter.HandleFunc("/report", handlers.GetUserTransactionReportHandler).Methods("GET")
-	protectedRouter.HandleFunc("/api-key", handlers.CreateAPIKeyHandler).Methods("POST")
+	protectedRouter.HandleFunc("/me", api.GetMeHandler).Methods("GET")
+	protectedRouter.HandleFunc("/grade", api.GetUserGradeHandler).Methods("GET")
+	protectedRouter.HandleFunc("/deposit", api.ProcessDepositHandler).Methods("POST")
+	protectedRouter.HandleFunc("/cards", api.GetUserCardsHandler).Methods("GET")
+	protectedRouter.HandleFunc("/cards/issue", api.MassIssueCardsHandler).Methods("POST")
+	protectedRouter.HandleFunc("/cards/{id}/status", api.PatchCardStatusHandler).Methods("PATCH")
+	protectedRouter.HandleFunc("/cards/{id}/auto-replenishment", api.SetCardAutoReplenishmentHandler).Methods("POST")
+	protectedRouter.HandleFunc("/cards/{id}/auto-replenishment", api.UnsetCardAutoReplenishmentHandler).Methods("DELETE")
+	protectedRouter.HandleFunc("/report", api.GetUserTransactionReportHandler).Methods("GET")
+	protectedRouter.HandleFunc("/api-key", api.CreateAPIKeyHandler).Methods("POST")
 
-	protectedRouter.HandleFunc("/teams", handlers.GetUserTeamsHandler).Methods("GET")
-	protectedRouter.HandleFunc("/teams", handlers.CreateTeamHandler).Methods("POST")
-	protectedRouter.HandleFunc("/teams/{id}", handlers.GetTeamHandler).Methods("GET")
-	protectedRouter.HandleFunc("/teams/{id}/members", handlers.InviteTeamMemberHandler).Methods("POST")
-	protectedRouter.HandleFunc("/teams/{id}/members/{userId}", handlers.RemoveTeamMemberHandler).Methods("DELETE")
-	protectedRouter.HandleFunc("/teams/{id}/members/{userId}/role", handlers.UpdateTeamMemberRoleHandler).Methods("PATCH")
+	protectedRouter.HandleFunc("/teams", api.GetUserTeamsHandler).Methods("GET")
+	protectedRouter.HandleFunc("/teams", api.CreateTeamHandler).Methods("POST")
+	protectedRouter.HandleFunc("/teams/{id}", api.GetTeamHandler).Methods("GET")
+	protectedRouter.HandleFunc("/teams/{id}/members", api.InviteTeamMemberHandler).Methods("POST")
+	protectedRouter.HandleFunc("/teams/{id}/members/{userId}", api.RemoveTeamMemberHandler).Methods("DELETE")
+	protectedRouter.HandleFunc("/teams/{id}/members/{userId}/role", api.UpdateTeamMemberRoleHandler).Methods("PATCH")
 
-	protectedRouter.HandleFunc("/referrals", handlers.GetReferralStatsHandler).Methods("GET")
-	protectedRouter.HandleFunc("/settings/telegram", handlers.UpdateTelegramChatIDHandler).Methods("POST")
+	protectedRouter.HandleFunc("/referrals", api.GetReferralStatsHandler).Methods("GET")
+	protectedRouter.HandleFunc("/settings/telegram", api.UpdateTelegramChatIDHandler).Methods("POST")
 
 	corsHandler := cors.New(cors.Options{
 		AllowedOrigins:   []string{"*"},

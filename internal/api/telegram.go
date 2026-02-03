@@ -1,10 +1,10 @@
-package handlers
+package api
 
 import (
 	"encoding/json"
-	"net/http"
-	"log"
 	"fmt"
+	"log"
+	"net/http"
 
 	"github.com/djalben/epn-killer-mvp/internal/middleware"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
@@ -28,23 +28,23 @@ func UpdateTelegramChatIDHandler(w http.ResponseWriter, r *http.Request) {
 	// 2. Декодирование ChatID из тела запроса
 	var req TelegramIDRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body: " + err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-    
-    // Простая проверка ChatID (должно быть больше 0)
-    if req.ChatID <= 0 {
-        http.Error(w, "Invalid ChatID. Must be positive.", http.StatusBadRequest)
-        return
-    }
+
+	// Простая проверка ChatID (должно быть больше 0)
+	if req.ChatID <= 0 {
+		http.Error(w, "Invalid ChatID. Must be positive.", http.StatusBadRequest)
+		return
+	}
 
 	// 3. Обновление ChatID в БД
-    // ИСПРАВЛЕНИЕ: Преобразование req.ChatID (int64) в int для вызова репозитория
-    // (chat ID в БД - bigint, но функция UpdateTelegramChatID ожидает int)
+	// ИСПРАВЛЕНИЕ: Преобразование req.ChatID (int64) в int для вызова репозитория
+	// (chat ID в БД - bigint, но функция UpdateTelegramChatID ожидает int)
 	err := repository.UpdateTelegramChatID(userID, int(req.ChatID))
 	if err != nil {
 		log.Printf("Error updating Telegram Chat ID for user %d: %v", userID, err)
-		http.Error(w, "Failed to update ChatID: " + err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to update ChatID: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 

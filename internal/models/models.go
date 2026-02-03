@@ -27,23 +27,23 @@ type FundRequest struct {
 	Amount decimal.Decimal `json:"amount"`
 }
 
-// AuthRequest - Запрос на авторизацию карты (используется в handlers/test_authorize.go)
+// AuthRequest - Запрос на авторизацию карты (используется в api/test_authorize.go)
 type AuthRequest struct {
-	CardID      int             `json:"card_id"`
-	Amount      decimal.Decimal `json:"amount"`
-	MerchantName string         `json:"merchant_name"`
+	CardID       int             `json:"card_id"`
+	Amount       decimal.Decimal `json:"amount"`
+	MerchantName string          `json:"merchant_name"`
 }
 
 // --- СТРУКТУРЫ ПОЛЬЗОВАТЕЛЕЙ И АУТЕНТИФИКАЦИИ ---
 
 // User - Структура для пользователя
 type User struct {
-	ID             int             `json:"id"`
-	Email          string          `json:"email"`
-	PasswordHash   string          `json:"-"`
-	Balance        decimal.Decimal `json:"balance"`
-	CreatedAt      time.Time       `json:"created_at"`
-	Status         string          `json:"status"`
+	ID           int             `json:"id"`
+	Email        string          `json:"email"`
+	PasswordHash string          `json:"-"`
+	Balance      decimal.Decimal `json:"balance"`
+	CreatedAt    time.Time       `json:"created_at"`
+	Status       string          `json:"status"`
 	// ИСПРАВЛЕНО: Используем sql.NullInt64 для полей, которые могут быть NULL
 	TeamID         sql.NullInt64 `json:"team_id"`
 	TelegramChatID sql.NullInt64 `json:"telegram_chat_id"`
@@ -68,17 +68,17 @@ type DepositRequest struct {
 
 // Transaction - Структура для транзакции
 type Transaction struct {
-	TransactionID    int             `json:"transaction_id"`
-	UserID           int             `json:"user_id"`
-	UserEmail        string          `json:"user_email,omitempty"`
-	CardID           *int            `json:"card_id,omitempty"`
-	CardLast4Digits  string          `json:"card_last_4_digits,omitempty"`
-	Amount           decimal.Decimal `json:"amount"`
-	Fee              decimal.Decimal `json:"fee"`
-	TransactionType  string          `json:"transaction_type"`
-	Status           string          `json:"status"`
-	Details          string          `json:"details"`
-	ExecutedAt       time.Time       `json:"executed_at"`
+	TransactionID   int             `json:"transaction_id"`
+	UserID          int             `json:"user_id"`
+	UserEmail       string          `json:"user_email,omitempty"`
+	CardID          *int            `json:"card_id,omitempty"`
+	CardLast4Digits string          `json:"card_last_4_digits,omitempty"`
+	Amount          decimal.Decimal `json:"amount"`
+	Fee             decimal.Decimal `json:"fee"`
+	TransactionType string          `json:"transaction_type"`
+	Status          string          `json:"status"`
+	Details         string          `json:"details"`
+	ExecutedAt      time.Time       `json:"executed_at"`
 }
 
 // --- СТРУКТУРЫ АВТОРИЗАЦИИ ---
@@ -95,48 +95,48 @@ type AuthResponse struct {
 
 // Card - Структура для карты
 type Card struct {
-	ID                    int             `json:"id"`
-	UserID                int             `json:"user_id"`
-	TeamID                *int            `json:"team_id,omitempty"` // Опционально, может быть NULL
-	ProviderCardID        string          `json:"provider_card_id"`
-	BIN                   string          `json:"bin"`
-	Last4Digits           string          `json:"last_4_digits"`
-	CardStatus            string          `json:"card_status"`
-	Nickname              string          `json:"nickname"`
-	DailySpendLimit       decimal.Decimal `json:"daily_spend_limit"`
-	FailedAuthCount       int             `json:"failed_auth_count"`
-	CardType              string          `json:"card_type"`
-	AutoReplenishEnabled  bool            `json:"auto_replenish_enabled"`
+	ID                     int             `json:"id"`
+	UserID                 int             `json:"user_id"`
+	TeamID                 *int            `json:"team_id,omitempty"` // Опционально, может быть NULL
+	ProviderCardID         string          `json:"provider_card_id"`
+	BIN                    string          `json:"bin"`
+	Last4Digits            string          `json:"last_4_digits"`
+	CardStatus             string          `json:"card_status"`
+	Nickname               string          `json:"nickname"`
+	DailySpendLimit        decimal.Decimal `json:"daily_spend_limit"`
+	FailedAuthCount        int             `json:"failed_auth_count"`
+	CardType               string          `json:"card_type"`
+	AutoReplenishEnabled   bool            `json:"auto_replenish_enabled"`
 	AutoReplenishThreshold decimal.Decimal `json:"auto_replenish_threshold"`
-	AutoReplenishAmount   decimal.Decimal `json:"auto_replenish_amount"`
-	CardBalance           decimal.Decimal `json:"card_balance"` // Текущий баланс карты
-	CreatedAt             time.Time       `json:"created_at"`
+	AutoReplenishAmount    decimal.Decimal `json:"auto_replenish_amount"`
+	CardBalance            decimal.Decimal `json:"card_balance"` // Текущий баланс карты
+	CreatedAt              time.Time       `json:"created_at"`
 }
 
 // MassIssueRequest - Запрос на массовый выпуск карт
 type MassIssueRequest struct {
-	Count             int             `json:"count"`
-	DailyLimit        decimal.Decimal `json:"daily_limit"`
-	CardNickname      string          `json:"nickname"`
-	MerchantName      string          `json:"merchant_name"`
-	CardType          string          `json:"card_type"` // VISA или MasterCard
-	TeamID            *int            `json:"team_id,omitempty"` // Опционально, для команд
+	Count        int             `json:"count"`
+	DailyLimit   decimal.Decimal `json:"daily_limit"`
+	CardNickname string          `json:"nickname"`
+	MerchantName string          `json:"merchant_name"`
+	CardType     string          `json:"card_type"`         // VISA или MasterCard
+	TeamID       *int            `json:"team_id,omitempty"` // Опционально, для команд
 }
 
-// CardIssueResult - Результат выпуска одной карты 
+// CardIssueResult - Результат выпуска одной карты
 type CardIssueResult struct {
 	Success   bool   `json:"success"`
 	Message   string `json:"message"`
 	Card      *Card  `json:"card,omitempty"`
-	Status    string `json:"status"`    
-	CardLast4 string `json:"card_last_4"` 
-	Nickname  string `json:"nickname"`  
+	Status    string `json:"status"`
+	CardLast4 string `json:"card_last_4"`
+	Nickname  string `json:"nickname"`
 }
 
-// MassIssueResponse - Ответ на массовый выпуск карт 
+// MassIssueResponse - Ответ на массовый выпуск карт
 type MassIssueResponse struct {
-	Successful int               `json:"successful_count"` 
-	Failed     int               `json:"failed_count"`     
+	Successful int               `json:"successful_count"`
+	Failed     int               `json:"failed_count"`
 	Results    []CardIssueResult `json:"results"`
 }
 
@@ -144,9 +144,9 @@ type MassIssueResponse struct {
 
 // AutoReplenishRequest - Запрос на настройку автопополнения
 type AutoReplenishRequest struct {
-	Enabled  bool            `json:"enabled"`
+	Enabled   bool            `json:"enabled"`
 	Threshold decimal.Decimal `json:"threshold"`
-	Amount   decimal.Decimal `json:"amount"`
+	Amount    decimal.Decimal `json:"amount"`
 }
 
 // --- СТРУКТУРЫ КОМАНД ---
@@ -201,10 +201,10 @@ type UserGrade struct {
 
 // GradeInfo - Информация о Grade для отображения
 type GradeInfo struct {
-	Grade      string          `json:"grade"`
-	TotalSpent decimal.Decimal `json:"total_spent"`
-	FeePercent decimal.Decimal `json:"fee_percent"`
-	NextGrade  *string         `json:"next_grade,omitempty"`
+	Grade      string           `json:"grade"`
+	TotalSpent decimal.Decimal  `json:"total_spent"`
+	FeePercent decimal.Decimal  `json:"fee_percent"`
+	NextGrade  *string          `json:"next_grade,omitempty"`
 	NextSpend  *decimal.Decimal `json:"next_spend,omitempty"` // Сколько нужно потратить до следующего уровня
 }
 
@@ -212,19 +212,19 @@ type GradeInfo struct {
 
 // Referral - Реферал
 type Referral struct {
-	ID              int             `json:"id"`
-	ReferrerID      int             `json:"referrer_id"`
-	ReferredID      int             `json:"referred_id"`
-	ReferralCode    string          `json:"referral_code"`
-	Status          string          `json:"status"` // 'PENDING', 'ACTIVE', 'COMPLETED'
+	ID               int             `json:"id"`
+	ReferrerID       int             `json:"referrer_id"`
+	ReferredID       int             `json:"referred_id"`
+	ReferralCode     string          `json:"referral_code"`
+	Status           string          `json:"status"` // 'PENDING', 'ACTIVE', 'COMPLETED'
 	CommissionEarned decimal.Decimal `json:"commission_earned"`
-	CreatedAt       time.Time       `json:"created_at"`
+	CreatedAt        time.Time       `json:"created_at"`
 }
 
 // ReferralStats - Статистика реферальной программы
 type ReferralStats struct {
-	TotalReferrals    int             `json:"total_referrals"`
-	ActiveReferrals   int             `json:"active_referrals"`
-	TotalCommission   decimal.Decimal `json:"total_commission"`
-	ReferralCode      string          `json:"referral_code"`
+	TotalReferrals  int             `json:"total_referrals"`
+	ActiveReferrals int             `json:"active_referrals"`
+	TotalCommission decimal.Decimal `json:"total_commission"`
+	ReferralCode    string          `json:"referral_code"`
 }

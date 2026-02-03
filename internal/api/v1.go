@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"database/sql"
@@ -7,7 +7,7 @@ import (
 	// Другие импорты, необходимые для остальных хендлеров
 )
 
-// GlobalDB - Переменная для подключения к БД. Объявляется только здесь в пакете handlers.
+// GlobalDB - Переменная для подключения к БД. Объявляется только здесь в пакете api.
 var GlobalDB *sql.DB
 
 // HealthCheckHandler - Простой хендлер для проверки работоспособности.
@@ -28,5 +28,5 @@ func HealthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Service is up and running. Database connected."))
 }
 
-// GetReportDataHandler теперь находится только в handlers/report.go
+// GetReportDataHandler теперь находится только в api/report.go
 // Другие хендлеры, определенные здесь, должны быть ниже.

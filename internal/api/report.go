@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"encoding/json"
@@ -70,4 +70,4 @@ func GetUserTransactionReportHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetAdminTransactionReportHandler удален, чтобы избежать конфликта с handlers/admin.go
+// GetAdminTransactionReportHandler удален, чтобы избежать конфликта с api/admin.go

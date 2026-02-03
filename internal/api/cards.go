@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"encoding/json"
@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
+	"github.com/djalben/epn-killer-mvp/internal/middleware"
 	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
-	"github.com/djalben/epn-killer-mvp/internal/middleware"
+	"github.com/gorilla/mux"
 	"github.com/shopspring/decimal"
 )
 
@@ -175,11 +175,11 @@ func SetCardAutoReplenishmentHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"card_id": cardID,
-		"enabled": req.Enabled,
+		"card_id":   cardID,
+		"enabled":   req.Enabled,
 		"threshold": req.Threshold.String(),
-		"amount": req.Amount.String(),
-		"message": "Auto-replenishment settings updated successfully",
+		"amount":    req.Amount.String(),
+		"message":   "Auto-replenishment settings updated successfully",
 	})
 }
 

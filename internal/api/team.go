@@ -1,4 +1,4 @@
-package handlers
+package api
 
 import (
 	"encoding/json"
@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
 	"github.com/djalben/epn-killer-mvp/internal/middleware"
 	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
+	"github.com/gorilla/mux"
 )
 
 // CreateTeamHandler - POST /api/v1/user/teams

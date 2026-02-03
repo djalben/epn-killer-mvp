@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// --- Константы CORE Logic ---
+// --- Константы Usecases Logic ---
 
 // MaxFailedAttempts - Количество отказов, после которого карта автоматически блокируется (Задача 2.4)
 const MaxFailedAttempts = 3

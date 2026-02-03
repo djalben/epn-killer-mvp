@@ -1,9 +1,9 @@
-package handlers
+package api
 
 // UpdateTelegramRequest - Структура запроса для обновления Chat ID.
 // Оставлена здесь для возможного использования другими хендлерами.
 type UpdateTelegramRequest struct {
-    ChatID string `json:"chat_id"` 
+	ChatID string `json:"chat_id"`
 }
 
 // В этом файле нет других функций. Все неиспользуемые импорты удалены.

@@ -6,7 +6,7 @@
 
 - **Корень:** `go.mod`, `go.sum`, `Makefile`, `README.md`, `schema.sql`
 - **cmd/** — точка входа: `main.go`
-- **internal/** — весь остальной код: config, core, handlers, middleware, models, notification, repository, telegram, utils
+- **internal/** — весь остальной код: config, usecases, api, middleware, models, notification, repository, telegram, utils
 
 ## Требования
 

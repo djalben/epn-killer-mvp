@@ -1,0 +1,78 @@
+version: "2"
+run:
+  concurrency: 16
+linters:
+  default: all
+  disable:
+    - wsl
+    - containedctx
+    - cyclop
+    - exhaustruct
+    - funlen
+    - gochecknoglobals
+    - gosmopolitan
+    - ireturn
+    - lll
+    - mnd
+    - nonamedreturns
+    - tagalign
+    - varnamelen
+  settings:
+    depguard:
+      rules:
+        config:
+          list-mode: lax
+          files:
+            - "**/internal/config/**/*.go"
+          deny:
+            - pkg: "github.com/djalben/epn-killer-mvp"
+        api:
+          list-mode: lax
+          files:
+            - "**/internal/api/**/*.go"
+          deny:
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/config"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/services"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/usecases"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/repository"
+        repository:
+          list-mode: lax
+          files:
+            - "**/internal/repository/**/*.go"
+          deny:
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/api"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/config"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/services"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/usecases"
+        usecases:
+          list-mode: lax
+          files:
+            - "**/internal/usecases/**/*.go"
+          deny:
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/api"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/config"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/repository"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/services"
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
