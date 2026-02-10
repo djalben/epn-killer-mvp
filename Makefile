@@ -1,4 +1,4 @@
-.PHONY: build run test clean
+include .env
 
 build:
 	go build -o bin/server ./cmd/main.go
@@ -8,6 +8,9 @@ run:
 
 run-race:
 	go run --race ./cmd/main.go
+
+clean:
+	rm -rf bin/
 
 lint:
 	golangci-lint run ./... -v
@@ -22,5 +25,23 @@ format:
 test:
 	go test ./internal/...
 
-clean:
-	rm -rf bin/
+bin-deps:
+	go install github.com/pressly/goose/v3/cmd/goose@latest
+
+docker-up:
+	docker-compose -f ./deployment/docker-compose.yaml --env-file ./deployment/.env up --build
+
+docker-down:
+	docker-compose -f ./deployment/docker-compose.yaml down
+
+migrate-create:
+	goose postgres  "$(POSTGRES_DSN)" create "$(filter-out $@, $(MAKECMDGOALS))" sql -dir ./migrations/postgres 
+ 
+migrate-force:
+	goose postgres "$(POSTGRES_DSN)" -dir ./migrations/postgres  down-to "$(filter-out $@, $(MAKECMDGOALS))"
+ 
+migrate-up:
+	goose postgres "$(POSTGRES_DSN)" -dir ./migrations/postgres  up
+ 
+migrate-down:
+	goose postgres "$(POSTGRES_DSN)" -dir ./migrations/postgres  down
