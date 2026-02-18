@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/djalben/epn-killer-mvp/internal/middleware" // <--- ДОБАВЛЕНО: для доступа к UserIDKey
 	"github.com/djalben/epn-killer-mvp/internal/repository"
+	"github.com/djalben/epn-killer-mvp/internal/transport/http/middleware" // <--- ДОБАВЛЕНО: для доступа к UserIDKey
 	// УДАЛЕНО: "database/sql" (Не нужен, так как GlobalDB здесь не объявляется)
 	// УДАЛЕНО: "github.com/google/uuid" (Не используется)
 )

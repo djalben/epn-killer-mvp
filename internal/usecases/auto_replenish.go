@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/djalben/epn-killer-mvp/internal/notification"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
 	"github.com/shopspring/decimal"

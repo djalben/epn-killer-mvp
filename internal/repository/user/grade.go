@@ -1,10 +1,9 @@
-package repository
+package user
 
 import (
 	"fmt"
 	"log"
 
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/shopspring/decimal"
 )
 
@@ -27,12 +26,12 @@ var (
 )
 
 // GetUserGrade - Получить Grade пользователя
-func GetUserGrade(userID int) (*models.UserGrade, error) {
+func GetUserGrade(userID int) (*userGradeModel, error) {
 	if GlobalDB == nil {
 		return nil, fmt.Errorf("database connection not initialized")
 	}
 
-	var grade models.UserGrade
+	var grade userGradeModel
 	err := GlobalDB.QueryRow(
 		"SELECT id, user_id, grade, total_spent, fee_percent, updated_at FROM user_grades WHERE user_id = $1",
 		userID,
@@ -47,12 +46,12 @@ func GetUserGrade(userID int) (*models.UserGrade, error) {
 }
 
 // CreateUserGrade - Создать Grade для пользователя (STANDARD по умолчанию)
-func CreateUserGrade(userID int) (*models.UserGrade, error) {
+func CreateUserGrade(userID int) (*userGradeModel, error) {
 	if GlobalDB == nil {
 		return nil, fmt.Errorf("database connection not initialized")
 	}
 
-	var grade models.UserGrade
+	var grade userGradeModel
 	err := GlobalDB.QueryRow(
 		`INSERT INTO user_grades (user_id, grade, total_spent, fee_percent) 
 		 VALUES ($1, $2, $3, $4) 
@@ -71,10 +70,10 @@ func CreateUserGrade(userID int) (*models.UserGrade, error) {
 // CalculateGradeFromSpent - Вычислить Grade на основе суммы трат
 func CalculateGradeFromSpent(totalSpent decimal.Decimal) (string, decimal.Decimal) {
 	// Пороги как у e.pn
-	thresholdBlack := decimal.NewFromInt(100000)    // $100,000
-	thresholdPlatinum := decimal.NewFromInt(50000)  // $50,000
-	thresholdGold := decimal.NewFromInt(10000)      // $10,000
-	thresholdSilver := decimal.NewFromInt(1000)      // $1,000
+	thresholdBlack := decimal.NewFromInt(100000)   // $100,000
+	thresholdPlatinum := decimal.NewFromInt(50000) // $50,000
+	thresholdGold := decimal.NewFromInt(10000)     // $10,000
+	thresholdSilver := decimal.NewFromInt(1000)    // $1,000
 
 	if totalSpent.GreaterThanOrEqual(thresholdBlack) {
 		return GradeBlack, FeeBlack
@@ -131,19 +130,19 @@ func UpdateUserGrade(userID int) error {
 		return fmt.Errorf("failed to update user grade")
 	}
 
-	log.Printf("✅ User %d grade updated: %s (total spent: %s, fee: %s%%)", 
+	log.Printf("✅ User %d grade updated: %s (total spent: %s, fee: %s%%)",
 		userID, newGrade, totalSpent.String(), newFeePercent.String())
 	return nil
 }
 
 // GetUserGradeInfo - Получить информацию о Grade с деталями для UI
-func GetUserGradeInfo(userID int) (*models.GradeInfo, error) {
+func GetUserGradeInfo(userID int) (*userGradeModel, error) {
 	grade, err := GetUserGrade(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	info := &models.GradeInfo{
+	info := &userGradeModel{
 		Grade:      grade.Grade,
 		TotalSpent: grade.TotalSpent,
 		FeePercent: grade.FeePercent,

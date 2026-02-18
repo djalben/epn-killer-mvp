@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
 	"github.com/djalben/epn-killer-mvp/internal/utils"
 	"github.com/shopspring/decimal"

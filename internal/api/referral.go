@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/djalben/epn-killer-mvp/internal/middleware"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
+	"github.com/djalben/epn-killer-mvp/internal/transport/http/middleware"
 )
 
 // GetReferralStatsHandler - Возвращает статистику реферальной программы пользователя

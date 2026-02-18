@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/djalben/epn-killer-mvp/internal/usecases"
 	"github.com/shopspring/decimal"
 )

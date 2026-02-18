@@ -19,7 +19,7 @@
 make build
 # или
 go build -o bin/server ./cmd
-```
+``` 
 
 Запуск (нужна переменная `DATABASE_URL`):
 

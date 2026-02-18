@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/djalben/epn-killer-mvp/internal/middleware"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
+	"github.com/djalben/epn-killer-mvp/internal/transport/http/middleware"
 )
 
 // GetUserTransactionReportHandler обрабатывает запрос GET /api/v1/user/report

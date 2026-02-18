@@ -1,4 +1,4 @@
-package repository
+package card
 
 import (
 	"database/sql"
@@ -6,17 +6,13 @@ import (
 	"log"
 	"time"
 
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/djalben/epn-killer-mvp/internal/notification"
 	"github.com/shopspring/decimal"
 )
 
 // GetCardByID извлекает карту со всеми полями
-func GetCardByID(id int) (models.Card, error) {
-	if GlobalDB == nil {
-		return models.Card{}, fmt.Errorf("database connection not initialized")
-	}
-	var card models.Card
+func GetCardByID(id int) (cardModel, error) {
+	var card cardModel
 	var teamID sql.NullInt64
 	query := `
 		SELECT id, user_id, provider_card_id, bin, last_4_digits, card_status, 
@@ -43,7 +39,7 @@ func GetCardByID(id int) (models.Card, error) {
 }
 
 // GetUserCards извлекает все карты пользователя
-func GetUserCards(userID int) ([]models.Card, error) {
+func GetUserCards(userID int) ([]cardModel, error) {
 	if GlobalDB == nil {
 		return nil, fmt.Errorf("database connection not initialized")
 	}
@@ -68,9 +64,9 @@ func GetUserCards(userID int) ([]models.Card, error) {
 	}
 	defer rows.Close()
 
-	var cards []models.Card
+	var cards []cardModel
 	for rows.Next() {
-		var card models.Card
+		var card cardModel
 		var teamID sql.NullInt64
 		err := rows.Scan(
 			&card.ID,
@@ -255,7 +251,7 @@ func IssueCards(userID int, req models.MassIssueRequest) (interface{}, error) {
 
 	log.Printf("IssueCards: User %d requested %d cards", userID, req.Count)
 
-	var results []models.CardIssueResult
+	var results []cardModelIssueResult
 	successCount := 0
 	failedCount := 0
 
@@ -279,7 +275,7 @@ func IssueCards(userID int, req models.MassIssueRequest) (interface{}, error) {
 			if err != nil || !hasAccess {
 				log.Printf("Access denied: User %d does not have access to team %d", userID, *req.TeamID)
 				failedCount++
-				results = append(results, models.CardIssueResult{
+				results = append(results, cardModelIssueResult{
 					Success:   false,
 					Status:    "FAILED",
 					CardLast4: last4,
@@ -297,7 +293,7 @@ func IssueCards(userID int, req models.MassIssueRequest) (interface{}, error) {
 		`,
 			userID,
 			fmt.Sprintf("MOCK-%d-%s", userID, last4), // Mock provider ID
-			"424242",                                   // Тестовый BIN
+			"424242",                                 // Тестовый BIN
 			last4,
 			"ACTIVE",
 			req.CardNickname,
@@ -311,7 +307,7 @@ func IssueCards(userID int, req models.MassIssueRequest) (interface{}, error) {
 		if err != nil {
 			log.Printf("Failed to insert card for user %d: %v", userID, err)
 			failedCount++
-			results = append(results, models.CardIssueResult{
+			results = append(results, cardModelIssueResult{
 				Success:   false,
 				Status:    "FAILED",
 				CardLast4: last4,
@@ -323,13 +319,13 @@ func IssueCards(userID int, req models.MassIssueRequest) (interface{}, error) {
 
 		// Успешно создана карта
 		successCount++
-		results = append(results, models.CardIssueResult{
+		results = append(results, cardModelIssueResult{
 			Success:   true,
 			Status:    "ACTIVE",
 			CardLast4: last4,
 			Nickname:  req.CardNickname,
 			Message:   "Card issued successfully",
-			Card: &models.Card{
+			Card: &cardModel{
 				ID:              cardID,
 				UserID:          userID,
 				TeamID:          req.TeamID,
@@ -398,13 +394,13 @@ func UpdateCardAutoReplenishment(cardID int, userID int, enabled bool, threshold
 		return fmt.Errorf("failed to update auto-replenishment settings")
 	}
 
-	log.Printf("✅ Auto-replenishment updated for card %d: enabled=%v, threshold=%s, amount=%s", 
+	log.Printf("✅ Auto-replenishment updated for card %d: enabled=%v, threshold=%s, amount=%s",
 		cardID, enabled, threshold.String(), amount.String())
 	return nil
 }
 
 // GetCardsNeedingReplenishment - Получить карты, требующие пополнения
-func GetCardsNeedingReplenishment() ([]models.Card, error) {
+func GetCardsNeedingReplenishment() ([]cardModel, error) {
 	if GlobalDB == nil {
 		return nil, fmt.Errorf("database connection not initialized")
 	}
@@ -427,9 +423,9 @@ func GetCardsNeedingReplenishment() ([]models.Card, error) {
 	}
 	defer rows.Close()
 
-	var cards []models.Card
+	var cards []cardModel
 	for rows.Next() {
-		var card models.Card
+		var card cardModel
 		var teamID sql.NullInt64
 		err := rows.Scan(
 			&card.ID, &card.UserID, &card.ProviderCardID, &card.BIN, &card.Last4Digits,

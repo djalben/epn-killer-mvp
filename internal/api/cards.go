@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/djalben/epn-killer-mvp/internal/middleware"
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/djalben/epn-killer-mvp/internal/repository"
+	"github.com/djalben/epn-killer-mvp/internal/transport/http/middleware"
 	"github.com/gorilla/mux"
 	"github.com/shopspring/decimal"
 )

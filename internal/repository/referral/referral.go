@@ -1,10 +1,9 @@
-package repository
+package referral
 
 import (
 	"fmt"
 	"log"
 
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/shopspring/decimal"
 )
 
@@ -65,14 +64,14 @@ func GetUserReferralCode(userID int) (string, error) {
 
 	// Если кода нет, создаем новый
 	newCode := GenerateReferralCode(userID)
-	
+
 	// Проверяем уникальность
 	var existingCode string
 	err = GlobalDB.QueryRow(
 		"SELECT referral_code FROM referrals WHERE referral_code = $1",
 		newCode,
 	).Scan(&existingCode)
-	
+
 	// Если код уже существует, генерируем новый
 	for err == nil {
 		newCode = GenerateReferralCode(userID)
@@ -119,7 +118,7 @@ func GetReferralStats(userID int) (*models.ReferralStats, error) {
 	return &models.ReferralStats{
 		TotalReferrals:  totalReferrals,
 		ActiveReferrals: activeReferrals,
-		TotalCommission:  totalCommission,
+		TotalCommission: totalCommission,
 		ReferralCode:    code,
 	}, nil
 }

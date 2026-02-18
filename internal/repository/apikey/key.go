@@ -1,24 +1,24 @@
-package repository
+package apikey
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"time"
-	
+
 	"crypto/rand"
 	"encoding/hex"
 	"strings" // <-- Обязательный импорт
+
+	"github.com/google/uuid"
 )
 
 // GlobalDB не объявляется здесь, так как она объявлена в другом файле пакета repository (globals.go)
 
 // GenerateAPIKey генерирует новый API ключ и сохраняет/обновляет его в базе данных (UPSERT).
-func GenerateAPIKey(userID int) (string, error) {
-	if GlobalDB == nil { 
-		return "", fmt.Errorf("database connection not initialized")
-	}
+func (r *Repository) GenerateAPIKey(ctx context.Context, userID uuid.UUID) (string, error) {
 
 	// 1. Генерируем новый ключ (16 байт -> 32 hex) и форматируем как UUID для колонки UUID в БД
 	hexKey, err := generateRandomString(16)
@@ -29,7 +29,7 @@ func GenerateAPIKey(userID int) (string, error) {
 
 	// 2. INSERT (таблица api_keys: api_key UUID UNIQUE; один ключ на user — перезаписываем через отдельный запрос)
 	// Сначала удаляем старый ключ пользователя, затем вставляем новый
-	_, _ = GlobalDB.Exec("DELETE FROM api_keys WHERE user_id = $1", userID)
+	_, _ = r.PostgresRepo. .client.Exec("DELETE FROM api_keys WHERE user_id = $1", userID)
 	const query = `INSERT INTO api_keys (api_key, user_id, created_at) VALUES ($1::uuid, $2, $3) RETURNING api_key::text`
 	var insertedKey string
 	err = GlobalDB.QueryRow(query, apiKeyUUID, userID, time.Now()).Scan(&insertedKey)
@@ -46,15 +46,15 @@ func GetUserIDByAPIKey(apiKey string) (int, error) {
 	if GlobalDB == nil {
 		return 0, fmt.Errorf("database connection not initialized")
 	}
-    
-    log.Println("DIAGNOSTIC: GetUserIDByAPIKey called.") 
 
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Удаляем пробелы (whitespace) перед поиском 
-    trimmedAPIKey := strings.TrimSpace(apiKey)
+	log.Println("DIAGNOSTIC: GetUserIDByAPIKey called.")
+
+	// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Удаляем пробелы (whitespace) перед поиском
+	trimmedAPIKey := strings.TrimSpace(apiKey)
 
 	var userID int
-	
-    // ИСПРАВЛЕНИЕ: ЯВНО приводим поле api_key к текстовому типу (::text) 
+
+	// ИСПРАВЛЕНИЕ: ЯВНО приводим поле api_key к текстовому типу (::text)
 	query := `
 		SELECT user_id 
 		FROM api_keys 
@@ -74,28 +74,26 @@ func GetUserIDByAPIKey(apiKey string) (int, error) {
 	return userID, nil
 }
 
-
 // GetAPIKeyByUserID извлекает текущий активный API ключ пользователя по UserID.
 func GetAPIKeyByUserID(userID int) (string, error) {
-    if GlobalDB == nil {
-        return "", fmt.Errorf("database connection not initialized")
-    }
+	if GlobalDB == nil {
+		return "", fmt.Errorf("database connection not initialized")
+	}
 
-    var apiKey string
-    query := `SELECT api_key FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`
+	var apiKey string
+	query := `SELECT api_key FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`
 
-    err := GlobalDB.QueryRow(query, userID).Scan(&apiKey)
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) {
-            return "", fmt.Errorf("no API key found for user %d", userID)
-        }
-        log.Printf("Database error fetching API key for user %d: %v", userID, err)
-        return "", fmt.Errorf("database error")
-    }
+	err := GlobalDB.QueryRow(query, userID).Scan(&apiKey)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("no API key found for user %d", userID)
+		}
+		log.Printf("Database error fetching API key for user %d: %v", userID, err)
+		return "", fmt.Errorf("database error")
+	}
 
-    return apiKey, nil
+	return apiKey, nil
 }
-
 
 // --- Вспомогательные функции (Реализация) ---
 

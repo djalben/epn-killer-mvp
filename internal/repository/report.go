@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/djalben/epn-killer-mvp/internal/models"
 	"github.com/shopspring/decimal"
 )
 
@@ -102,26 +101,26 @@ func GetUserTransactionReport(userID int, filters map[string]interface{}) (Repor
 
 	for rows.Next() {
 		var tx models.Transaction
-		
+
 		err := rows.Scan(
-			&tx.TransactionID, 
-			&tx.UserID, 
-			&tx.Amount, 
-			&tx.Fee, 
-			&tx.TransactionType, 
-			&tx.Status, 
-			&tx.Details, 
+			&tx.TransactionID,
+			&tx.UserID,
+			&tx.Amount,
+			&tx.Fee,
+			&tx.TransactionType,
+			&tx.Status,
+			&tx.Details,
 			&tx.ExecutedAt,
 		)
 		if err != nil {
 			log.Printf("DB Error scanning transaction: %v", err)
-			continue 
+			continue
 		}
-		
+
 		report.Transactions = append(report.Transactions, tx)
 		report.TotalTransactions++
 		report.TotalAmount = report.TotalAmount.Add(tx.Amount)
-		report.TotalFee = report.TotalFee.Add(tx.Fee) 
+		report.TotalFee = report.TotalFee.Add(tx.Fee)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -134,10 +133,10 @@ func GetUserTransactionReport(userID int, filters map[string]interface{}) (Repor
 
 // GetAdminTransactionReport - Извлекает отчет по всем транзакциям (для админа).
 func GetAdminTransactionReport() (ReportSummary, error) {
-    if GlobalDB == nil {
+	if GlobalDB == nil {
 		return ReportSummary{}, fmt.Errorf("database connection not initialized")
 	}
-    
+
 	queryTx := `
         SELECT id, user_id, amount, fee, transaction_type, status, details, executed_at
         FROM transactions
@@ -156,18 +155,18 @@ func GetAdminTransactionReport() (ReportSummary, error) {
 	report.TotalFee = decimal.Zero
 
 	for rows.Next() {
-        var tx models.Transaction
+		var tx models.Transaction
 		var cardID sql.NullInt64
-		
+
 		err := rows.Scan(
-			&tx.TransactionID, 
-			&tx.UserID, 
+			&tx.TransactionID,
+			&tx.UserID,
 			&cardID,
-			&tx.Amount, 
-			&tx.Fee, 
-			&tx.TransactionType, 
-			&tx.Status, 
-			&tx.Details, 
+			&tx.Amount,
+			&tx.Fee,
+			&tx.TransactionType,
+			&tx.Status,
+			&tx.Details,
 			&tx.ExecutedAt,
 		)
 		if cardID.Valid {
@@ -176,9 +175,9 @@ func GetAdminTransactionReport() (ReportSummary, error) {
 		}
 		if err != nil {
 			log.Printf("DB Error scanning admin transaction: %v", err)
-			continue 
+			continue
 		}
-		
+
 		report.Transactions = append(report.Transactions, tx)
 		report.TotalTransactions++
 		report.TotalAmount = report.TotalAmount.Add(tx.Amount)
