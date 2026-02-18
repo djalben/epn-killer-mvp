@@ -11,6 +11,7 @@ require (
 	github.com/lib/pq v1.11.2
 	github.com/rs/cors v1.11.1
 	github.com/shopspring/decimal v1.4.0
+	gitlab.com/libs-artifex/wrapper/v2 v2.0.1
 	golang.org/x/crypto v0.48.0
 )
 

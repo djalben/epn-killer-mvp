@@ -7,13 +7,13 @@ import (
 )
 
 type PostgresRepo struct {
-	client *sqlx.DB
-	logger *slog.Logger
+	Client *sqlx.DB
+	Logger *slog.Logger
 }
 
 func NewPostgresRepo(client *sqlx.DB, logger *slog.Logger) PostgresRepo {
 	return PostgresRepo{
-		client: client,
-		logger: logger,
+		Client: client,
+		Logger: logger,
 	}
 }

@@ -4,122 +4,93 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"log"
-	"time"
-
-	"crypto/rand"
-	"encoding/hex"
-	"strings" // <-- Обязательный импорт
+	"log/slog"
 
 	"github.com/google/uuid"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
-// GlobalDB не объявляется здесь, так как она объявлена в другом файле пакета repository (globals.go)
-
-// GenerateAPIKey генерирует новый API ключ и сохраняет/обновляет его в базе данных (UPSERT).
+// GenerateAPIKey генерирует новый ключ и сохраняет его для пользователя (UPSERT: старый удаляется)
 func (r *Repository) GenerateAPIKey(ctx context.Context, userID uuid.UUID) (string, error) {
-
-	// 1. Генерируем новый ключ (16 байт -> 32 hex) и форматируем как UUID для колонки UUID в БД
+	// 1. Генерируем новый ключ
 	hexKey, err := generateRandomString(16)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate random API key: %w", err)
+		return "", wrapper.Wrap(err)
 	}
 	apiKeyUUID := formatAsUUID(hexKey)
 
-	// 2. INSERT (таблица api_keys: api_key UUID UNIQUE; один ключ на user — перезаписываем через отдельный запрос)
-	// Сначала удаляем старый ключ пользователя, затем вставляем новый
-	_, _ = r.PostgresRepo. .client.Exec("DELETE FROM api_keys WHERE user_id = $1", userID)
-	const query = `INSERT INTO api_keys (api_key, user_id, created_at) VALUES ($1::uuid, $2, $3) RETURNING api_key::text`
-	var insertedKey string
-	err = GlobalDB.QueryRow(query, apiKeyUUID, userID, time.Now()).Scan(&insertedKey)
+	// 2. Удаляем старый ключ пользователя (если есть)
+	_, err = r.Client.ExecContext(ctx, "DELETE FROM api_keys WHERE user_id = $1", userID)
 	if err != nil {
-		log.Printf("Error during API key UPSERT for user %d: %v", userID, err)
-		return "", fmt.Errorf("failed to process API key: %w", err)
+		r.Logger.ErrorContext(ctx, "failed to delete old API key",
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return "", wrapper.Wrap(err)
+	}
+
+	// 3. Вставляем новый ключ
+	const query = `
+		INSERT INTO api_keys (api_key, user_id, permissions, created_at)
+		VALUES ($1::uuid, $2, 'READ_ONLY', NOW())
+		RETURNING api_key::text
+	`
+
+	var insertedKey string
+	err = r.Client.QueryRowContext(ctx, query, apiKeyUUID, userID).Scan(&insertedKey)
+	if err != nil {
+		r.Logger.ErrorContext(ctx, "failed to insert new API key",
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return "", wrapper.Wrap(err)
 	}
 
 	return insertedKey, nil
 }
 
-// GetUserIDByAPIKey - Находит UserID по API ключу.
-func GetUserIDByAPIKey(apiKey string) (int, error) {
-	if GlobalDB == nil {
-		return 0, fmt.Errorf("database connection not initialized")
-	}
-
-	log.Println("DIAGNOSTIC: GetUserIDByAPIKey called.")
-
-	// КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Удаляем пробелы (whitespace) перед поиском
-	trimmedAPIKey := strings.TrimSpace(apiKey)
-
-	var userID int
-
-	// ИСПРАВЛЕНИЕ: ЯВНО приводим поле api_key к текстовому типу (::text)
-	query := `
-		SELECT user_id 
+// GetAPIKeyByUserID возвращает последний активный ключ пользователя
+func (r *Repository) GetAPIKeyByUserID(ctx context.Context, userID uuid.UUID) (string, error) {
+	const query = `
+		SELECT api_key::text 
 		FROM api_keys 
-		WHERE api_key::text = $1
+		WHERE user_id = $1 AND is_active = true
+		ORDER BY created_at DESC 
+		LIMIT 1
 	`
-	// Используем очищенный ключ
-	err := GlobalDB.QueryRow(query, trimmedAPIKey).Scan(&userID)
-
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, fmt.Errorf("API key not found")
-		}
-		log.Printf("Database error during API key lookup: %v", err)
-		return 0, fmt.Errorf("database error during API key lookup")
-	}
-
-	return userID, nil
-}
-
-// GetAPIKeyByUserID извлекает текущий активный API ключ пользователя по UserID.
-func GetAPIKeyByUserID(userID int) (string, error) {
-	if GlobalDB == nil {
-		return "", fmt.Errorf("database connection not initialized")
-	}
 
 	var apiKey string
-	query := `SELECT api_key FROM api_keys WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`
-
-	err := GlobalDB.QueryRow(query, userID).Scan(&apiKey)
+	err := r.Client.GetContext(ctx, &apiKey, query, userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", fmt.Errorf("no API key found for user %d", userID)
+			return "", wrapper.Wrap(errors.New("no active API key found"))
 		}
-		log.Printf("Database error fetching API key for user %d: %v", userID, err)
-		return "", fmt.Errorf("database error")
+		r.Logger.ErrorContext(ctx, "failed to get API key by user",
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return "", wrapper.Wrap(err)
 	}
 
 	return apiKey, nil
 }
 
-// --- Вспомогательные функции (Реализация) ---
+// GetUserIDByAPIKey находит user_id по API-ключу
+func (r *Repository) GetUserIDByAPIKey(ctx context.Context, apiKey string) (uuid.UUID, error) {
+	const query = `
+		SELECT user_id 
+		FROM api_keys 
+		WHERE api_key::text = $1 AND is_active = true
+	`
 
-// generateRandomBytes генерирует n случайных байт.
-func generateRandomBytes(n int) ([]byte, error) {
-	b := make([]byte, n)
-	_, err := rand.Read(b) // Используем crypto/rand
+	var userID uuid.UUID
+	err := r.Client.GetContext(ctx, &userID, query, apiKey)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return uuid.Nil, wrapper.Wrap(errors.New("api key not found or inactive"))
+		}
+		r.Logger.ErrorContext(ctx, "failed to get user by API key",
+			slog.String("api_key", apiKey),
+			slog.Any("error", err))
+		return uuid.Nil, wrapper.Wrap(err)
 	}
-	return b, nil
-}
 
-// generateRandomString генерирует случайную строку в шестнадцатеричном формате.
-func generateRandomString(n int) (string, error) {
-	bytes, err := generateRandomBytes(n)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(bytes), nil
-}
-
-// formatAsUUID форматирует 32 hex-символа в вид UUID (8-4-4-4-12) для PostgreSQL.
-func formatAsUUID(hexStr string) string {
-	if len(hexStr) != 32 {
-		return hexStr
-	}
-	return hexStr[0:8] + "-" + hexStr[8:12] + "-" + hexStr[12:16] + "-" + hexStr[16:20] + "-" + hexStr[20:32]
+	return userID, nil
 }
