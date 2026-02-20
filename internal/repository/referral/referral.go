@@ -1,178 +1,195 @@
 package referral
 
 import (
-	"fmt"
-	"log"
+	"context"
+	"database/sql"
+	"errors"
+	"log/slog"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"gitlab.com/libs-artifex/wrapper/v2"
+
+	"github.com/djalben/epn-killer-mvp/internal/entity"
 )
 
-// GenerateReferralCode - Генерирует уникальный реферальный код
-func GenerateReferralCode(userID int) string {
-	// Простая генерация: USER{userID}-{random}
-	// В продакшене можно использовать более сложную логику
-	return fmt.Sprintf("USER%d-%s", userID, generateReferralRandomString(8))
-}
+// ──────────────────────────────────────────────────────────────
+// Основные методы репозитория
+// ──────────────────────────────────────────────────────────────
 
-// generateReferralRandomString - Генерирует случайную строку для реферального кода
-func generateReferralRandomString(length int) string {
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		// Простая генерация на основе индекса (в продакшене использовать crypto/rand)
-		b[i] = charset[(i*7+length)%len(charset)]
-	}
-	return string(b)
-}
+// CreateReferral создаёт реферальную запись
+func (r *Repository) CreateReferral(ctx context.Context, referrerID, referredID uuid.UUID, referralCode string) error {
+	const query = `
+		INSERT INTO referrals (referrer_id, referred_id, referral_code, status)
+		VALUES ($1, $2, $3, 'ACTIVE')
+	`
 
-// CreateReferral - Создать реферальную запись
-func CreateReferral(referrerID int, referredID int, referralCode string) error {
-	if GlobalDB == nil {
-		return fmt.Errorf("database connection not initialized")
-	}
-
-	_, err := GlobalDB.Exec(
-		`INSERT INTO referrals (referrer_id, referred_id, referral_code, status)
-		 VALUES ($1, $2, $3, 'ACTIVE')`,
-		referrerID, referredID, referralCode,
-	)
+	_, err := r.Client.ExecContext(ctx, query, referrerID, referredID, referralCode)
 	if err != nil {
-		log.Printf("DB Error creating referral: %v", err)
-		return fmt.Errorf("failed to create referral")
+		r.Logger.ErrorContext(ctx, "failed to create referral",
+			slog.String("referrer_id", referrerID.String()),
+			slog.String("referred_id", referredID.String()),
+			slog.String("referral_code", referralCode),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
-	log.Printf("✅ Referral created: referrer %d -> referred %d (code: %s)", referrerID, referredID, referralCode)
+	r.Logger.InfoContext(ctx, "referral created",
+		slog.String("referrer_id", referrerID.String()),
+		slog.String("referred_id", referredID.String()),
+		slog.String("referral_code", referralCode))
+
 	return nil
 }
 
-// GetUserReferralCode - Получить реферальный код пользователя (или создать новый)
-func GetUserReferralCode(userID int) (string, error) {
-	if GlobalDB == nil {
-		return "", fmt.Errorf("database connection not initialized")
-	}
+// GetUserReferralCode получает реферальный код пользователя (создаёт новый, если нет)
+func (r *Repository) GetUserReferralCode(ctx context.Context, userID uuid.UUID) (string, error) {
+	const selectQuery = `
+		SELECT referral_code 
+		FROM referrals 
+		WHERE referrer_id = $1 
+		LIMIT 1
+	`
 
-	// Проверяем, есть ли уже код
 	var code string
-	err := GlobalDB.QueryRow(
-		"SELECT referral_code FROM referrals WHERE referrer_id = $1 LIMIT 1",
-		userID,
-	).Scan(&code)
-
+	err := r.Client.GetContext(ctx, &code, selectQuery, userID)
 	if err == nil {
 		return code, nil
 	}
 
-	// Если кода нет, создаем новый
-	newCode := GenerateReferralCode(userID)
+	if !errors.Is(err, sql.ErrNoRows) {
+		r.Logger.ErrorContext(ctx, "failed to get referral code",
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return "", wrapper.Wrap(err)
+	}
+
+	// Кода нет — генерируем новый
+	newCode := generateReferralCode(userID)
 
 	// Проверяем уникальность
-	var existingCode string
-	err = GlobalDB.QueryRow(
-		"SELECT referral_code FROM referrals WHERE referral_code = $1",
-		newCode,
-	).Scan(&existingCode)
+	for {
+		var existing string
+		err = r.Client.GetContext(ctx, &existing, "SELECT referral_code FROM referrals WHERE referral_code = $1", newCode)
+		if errors.Is(err, sql.ErrNoRows) {
+			break // код уникальный
+		}
+		if err != nil {
+			r.Logger.ErrorContext(ctx, "failed to check referral code uniqueness",
+				slog.String("user_id", userID.String()),
+				slog.Any("error", err))
+			return "", wrapper.Wrap(err)
+		}
+		newCode = generateReferralCode(userID)
+	}
 
-	// Если код уже существует, генерируем новый
-	for err == nil {
-		newCode = GenerateReferralCode(userID)
-		err = GlobalDB.QueryRow(
-			"SELECT referral_code FROM referrals WHERE referral_code = $1",
-			newCode,
-		).Scan(&existingCode)
+	// Создаём запись
+	err = r.CreateReferral(ctx, userID, uuid.Nil, newCode)
+	if err != nil {
+		return "", wrapper.Wrap(err)
 	}
 
 	return newCode, nil
 }
 
-// GetReferralStats - Получить статистику реферальной программы пользователя
-func GetReferralStats(userID int) (*models.ReferralStats, error) {
-	if GlobalDB == nil {
-		return nil, fmt.Errorf("database connection not initialized")
-	}
-
-	// Получить реферальный код
-	code, err := GetUserReferralCode(userID)
+// GetReferralStats получает статистику реферальной программы
+func (r *Repository) GetReferralStats(ctx context.Context, userID uuid.UUID) (*entity.ReferralStats, error) {
+	code, err := r.GetUserReferralCode(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, wrapper.Wrap(err)
 	}
 
-	// Подсчитать статистику
-	var totalReferrals, activeReferrals int
-	var totalCommission decimal.Decimal
-
-	err = GlobalDB.QueryRow(
-		`SELECT 
+	const statsQuery = `
+		SELECT 
 			COUNT(*) as total,
 			COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END) as active,
 			COALESCE(SUM(commission_earned), 0) as commission
-		 FROM referrals 
-		 WHERE referrer_id = $1`,
-		userID,
-	).Scan(&totalReferrals, &activeReferrals, &totalCommission)
+		FROM referrals 
+		WHERE referrer_id = $1
+	`
 
-	if err != nil {
-		log.Printf("DB Error fetching referral stats: %v", err)
-		return nil, fmt.Errorf("failed to fetch referral stats")
+	var stats struct {
+		Total      int             `db:"total"`
+		Active     int             `db:"active"`
+		Commission decimal.Decimal `db:"commission"`
 	}
 
-	return &models.ReferralStats{
-		TotalReferrals:  totalReferrals,
-		ActiveReferrals: activeReferrals,
-		TotalCommission: totalCommission,
+	err = r.Client.GetContext(ctx, &stats, statsQuery, userID)
+	if err != nil {
+		r.Logger.ErrorContext(ctx, "failed to get referral stats",
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
+	}
+
+	return &entity.ReferralStats{
+		TotalReferrals:  stats.Total,
+		ActiveReferrals: stats.Active,
+		TotalCommission: stats.Commission,
 		ReferralCode:    code,
 	}, nil
 }
 
-// ProcessReferralRegistration - Обработать регистрацию по реферальной ссылке
-func ProcessReferralRegistration(referredID int, referralCode string) error {
-	if GlobalDB == nil {
-		return fmt.Errorf("database connection not initialized")
-	}
+// ProcessReferralRegistration обрабатывает регистрацию по реферальной ссылке
+func (r *Repository) ProcessReferralRegistration(ctx context.Context, referredID uuid.UUID, referralCode string) error {
+	const findReferrerQuery = `
+		SELECT referrer_id 
+		FROM referrals 
+		WHERE referral_code = $1 AND status = 'ACTIVE' 
+		LIMIT 1
+	`
 
-	// Найти реферера по коду
-	var referrerID int
-	err := GlobalDB.QueryRow(
-		"SELECT referrer_id FROM referrals WHERE referral_code = $1 AND status = 'ACTIVE' LIMIT 1",
-		referralCode,
-	).Scan(&referrerID)
-
+	var referrerID uuid.UUID
+	err := r.Client.GetContext(ctx, &referrerID, findReferrerQuery, referralCode)
 	if err != nil {
-		// Реферальный код не найден или неактивен
-		return fmt.Errorf("invalid referral code")
+		if errors.Is(err, sql.ErrNoRows) {
+			return wrapper.Wrap(errors.New("invalid or inactive referral code"))
+		}
+		r.Logger.ErrorContext(ctx, "failed to find referrer by code",
+			slog.String("referral_code", referralCode),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
-	// Проверяем, что пользователь еще не был приглашен этим реферером
-	var existingID int
-	err = GlobalDB.QueryRow(
-		"SELECT id FROM referrals WHERE referrer_id = $1 AND referred_id = $2",
-		referrerID, referredID,
-	).Scan(&existingID)
+	// Проверяем, не зарегистрирован ли уже
+	const checkExistsQuery = `
+		SELECT id 
+		FROM referrals 
+		WHERE referrer_id = $1 AND referred_id = $2
+		LIMIT 1
+	`
 
+	var existingID uuid.UUID
+	err = r.Client.GetContext(ctx, &existingID, checkExistsQuery, referrerID, referredID)
 	if err == nil {
-		// Уже существует
-		return nil // Не ошибка, просто игнорируем
+		return nil // уже существует — не ошибка
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		r.Logger.ErrorContext(ctx, "failed to check existing referral",
+			slog.String("referrer_id", referrerID.String()),
+			slog.String("referred_id", referredID.String()),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
-	// Создаем реферальную запись
-	return CreateReferral(referrerID, referredID, referralCode)
+	return r.CreateReferral(ctx, referrerID, referredID, referralCode)
 }
 
-// AddReferralCommission - Добавить комиссию рефереру
-func AddReferralCommission(referrerID int, amount decimal.Decimal) error {
-	if GlobalDB == nil {
-		return fmt.Errorf("database connection not initialized")
-	}
+// AddReferralCommission добавляет комиссию рефереру
+func (r *Repository) AddReferralCommission(ctx context.Context, referrerID uuid.UUID, amount decimal.Decimal) error {
+	const updateQuery = `
+		UPDATE referrals 
+		SET commission_earned = commission_earned + $1 
+		WHERE referrer_id = $2 AND status = 'ACTIVE'
+	`
 
-	// Обновляем commission_earned для всех активных рефералов реферера
-	_, err := GlobalDB.Exec(
-		`UPDATE referrals 
-		 SET commission_earned = commission_earned + $1 
-		 WHERE referrer_id = $2 AND status = 'ACTIVE'`,
-		amount, referrerID,
-	)
+	_, err := r.Client.ExecContext(ctx, updateQuery, amount, referrerID)
 	if err != nil {
-		log.Printf("DB Error adding referral commission: %v", err)
-		return fmt.Errorf("failed to add referral commission")
+		r.Logger.ErrorContext(ctx, "failed to add referral commission",
+			slog.String("referrer_id", referrerID.String()),
+			slog.Any("amount", amount),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
 	return nil

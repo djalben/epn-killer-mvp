@@ -1,4 +1,4 @@
-package models
+package entity
 
 import (
 	"database/sql"
@@ -38,7 +38,7 @@ type AuthRequest struct {
 
 // User - Структура для пользователя
 type User struct {
-	ID           int             `json:"id"`
+	ID           string          `json:"id"`
 	Email        string          `json:"email"`
 	PasswordHash string          `json:"-"`
 	Balance      decimal.Decimal `json:"balance"`
@@ -95,9 +95,9 @@ type AuthResponse struct {
 
 // Card - Структура для карты
 type Card struct {
-	ID                     int             `json:"id"`
-	UserID                 int             `json:"user_id"`
-	TeamID                 *int            `json:"team_id,omitempty"` // Опционально, может быть NULL
+	ID                     string          `json:"id"`
+	UserID                 string          `json:"user_id"`
+	TeamID                 *string         `json:"team_id,omitempty"` // Опционально, может быть NULL
 	ProviderCardID         string          `json:"provider_card_id"`
 	BIN                    string          `json:"bin"`
 	Last4Digits            string          `json:"last_4_digits"`
@@ -120,7 +120,7 @@ type MassIssueRequest struct {
 	CardNickname string          `json:"nickname"`
 	MerchantName string          `json:"merchant_name"`
 	CardType     string          `json:"card_type"`         // VISA или MasterCard
-	TeamID       *int            `json:"team_id,omitempty"` // Опционально, для команд
+	TeamID       *string         `json:"team_id,omitempty"` // Опционально, для команд
 }
 
 // CardIssueResult - Результат выпуска одной карты
@@ -153,20 +153,20 @@ type AutoReplenishRequest struct {
 
 // Team - Команда
 type Team struct {
-	ID        int       `json:"id"`
+	ID        string    `json:"id"`
 	Name      string    `json:"name"`
-	OwnerID   int       `json:"owner_id"`
+	OwnerID   string    `json:"owner_id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // TeamMember - Участник команды
 type TeamMember struct {
-	ID        int       `json:"id"`
-	TeamID    int       `json:"team_id"`
-	UserID    int       `json:"user_id"`
+	ID        string    `json:"id"`
+	TeamID    string    `json:"team_id"`
+	UserID    string    `json:"user_id"`
 	Role      string    `json:"role"` // 'owner', 'admin', 'member'
-	InvitedBy *int      `json:"invited_by,omitempty"`
+	InvitedBy *string   `json:"invited_by,omitempty"`
 	JoinedAt  time.Time `json:"joined_at"`
 	User      *User     `json:"user,omitempty"` // Для деталей пользователя
 }
@@ -191,8 +191,8 @@ type UpdateTeamMemberRoleRequest struct {
 
 // UserGrade - Grade пользователя
 type UserGrade struct {
-	ID         int             `json:"id"`
-	UserID     int             `json:"user_id"`
+	ID         string          `json:"id"`
+	UserID     string          `json:"user_id"`
 	Grade      string          `json:"grade"` // 'STANDARD', 'SILVER', 'GOLD', 'PLATINUM', 'BLACK'
 	TotalSpent decimal.Decimal `json:"total_spent"`
 	FeePercent decimal.Decimal `json:"fee_percent"` // Комиссия в процентах (6.70 = 6.7%)
@@ -212,9 +212,9 @@ type GradeInfo struct {
 
 // Referral - Реферал
 type Referral struct {
-	ID               int             `json:"id"`
-	ReferrerID       int             `json:"referrer_id"`
-	ReferredID       int             `json:"referred_id"`
+	ID               string          `json:"id"`
+	ReferrerID       string          `json:"referrer_id"`
+	ReferredID       string          `json:"referred_id"`
 	ReferralCode     string          `json:"referral_code"`
 	Status           string          `json:"status"` // 'PENDING', 'ACTIVE', 'COMPLETED'
 	CommissionEarned decimal.Decimal `json:"commission_earned"`

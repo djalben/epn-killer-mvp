@@ -1,113 +1,121 @@
 package team
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
-	entity "github.com/djalben/epn-killer-mvp/internal/entity"
+	"github.com/google/uuid"
+	"gitlab.com/libs-artifex/wrapper/v2"
+
+	"github.com/djalben/epn-killer-mvp/internal/entity"
+	// добавляем зависимость от user repo
 )
 
-// CreateTeam - Создать команду
-func CreateTeam(ownerID int, name string) (*teamModel, error) {
-	if GlobalDB == nil {
-		return nil, fmt.Errorf("database connection not initialized")
+// CreateTeam создаёт новую команду и добавляет владельца как owner
+func (r *Repository) CreateTeam(ctx context.Context, ownerID uuid.UUID, name string) (*entity.Team, error) {
+	const query = `
+		INSERT INTO teams (name, owner_id) 
+		VALUES ($1, $2) 
+		RETURNING id, name, owner_id, created_at, updated_at
+	`
+
+	var team entity.Team
+	err := r.Client.QueryRowContext(ctx, query, name, ownerID).
+		Scan(&team.ID, &team.Name, &team.OwnerID, &team.CreatedAt, &team.UpdatedAt)
+	if err != nil {
+		r.Logger.ErrorContext(ctx, "failed to create team",
+			slog.String("owner_id", ownerID.String()),
+			slog.String("name", name),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
 	}
 
-	var team teamModel
-	err := GlobalDB.QueryRow(
-		`INSERT INTO teams (name, owner_id) 
-		 VALUES ($1, $2) 
-		 RETURNING id, name, owner_id, created_at, updated_at`,
-		name, ownerID,
-	).Scan(&team.ID, &team.Name, &team.OwnerID, &team.CreatedAt, &team.UpdatedAt)
-
+	// Добавляем владельца в team_members как owner
+	const addOwnerQuery = `
+		INSERT INTO team_members (team_id, user_id, role, invited_by) 
+		VALUES ($1, $2, 'owner', $2)
+	`
+	_, err = r.Client.ExecContext(ctx, addOwnerQuery, team.ID, ownerID)
 	if err != nil {
-		log.Printf("DB Error creating team: %v", err)
-		return nil, fmt.Errorf("failed to create team")
-	}
+		r.Logger.ErrorContext(ctx, "failed to add owner to team_members",
+			slog.String("team_id", team.ID),
+			slog.String("owner_id", ownerID.String()),
+			slog.Any("error", err))
 
-	// Добавить владельца в команду как owner
-	_, err = GlobalDB.Exec(
-		`INSERT INTO team_members (team_id, user_id, role, invited_by) 
-		 VALUES ($1, $2, 'owner', $2)`,
-		team.ID, ownerID,
-	)
-	if err != nil {
-		log.Printf("DB Error adding owner to team: %v", err)
 		// Откатываем создание команды
-		GlobalDB.Exec("DELETE FROM teams WHERE id = $1", team.ID)
-		return nil, fmt.Errorf("failed to add owner to team")
+		r.Client.ExecContext(ctx, "DELETE FROM teams WHERE id = $1", team.ID)
+		return nil, wrapper.Wrap(err)
 	}
 
-	log.Printf("✅ Team %d created successfully by user %d", team.ID, ownerID)
+	r.Logger.InfoContext(ctx, "team created successfully",
+		slog.String("team_id", team.ID),
+		slog.String("owner_id", ownerID.String()),
+		slog.String("name", name))
+
 	return &team, nil
 }
 
-// GetUserTeams - Получить команды пользователя
-func GetUserTeams(userID int) ([]teamModel, error) {
-	if GlobalDB == nil {
-		return nil, fmt.Errorf("database connection not initialized")
-	}
-
-	query := `
+// GetUserTeams возвращает все команды пользователя
+func (r *Repository) GetUserTeams(ctx context.Context, userID uuid.UUID) ([]entity.Team, error) {
+	const query = `
 		SELECT t.id, t.name, t.owner_id, t.created_at, t.updated_at
 		FROM teams t
 		INNER JOIN team_members tm ON t.id = tm.team_id
 		WHERE tm.user_id = $1
 		ORDER BY t.created_at DESC
 	`
-	rows, err := GlobalDB.Query(query, userID)
+
+	rows, err := r.Client.QueryContext(ctx, query, userID)
 	if err != nil {
-		log.Printf("DB Error fetching teams for user %d: %v", userID, err)
-		return nil, fmt.Errorf("failed to fetch teams")
+		r.Logger.ErrorContext(ctx, "failed to get user teams",
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
 	}
 	defer rows.Close()
 
-	var teams []teamModel
+	var teams []entity.Team
 	for rows.Next() {
-		var team teamModel
-		err := rows.Scan(&team.ID, &team.Name, &team.OwnerID, &team.CreatedAt, &team.UpdatedAt)
-		if err != nil {
-			log.Printf("Error scanning team: %v", err)
+		var t entity.Team
+		if err := rows.Scan(&t.ID, &t.Name, &t.OwnerID, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			r.Logger.ErrorContext(ctx, "failed to scan team row", slog.Any("error", err))
 			continue
 		}
-		teams = append(teams, team)
+		teams = append(teams, t)
 	}
 
 	return teams, nil
 }
 
-// GetTeam - Получить команду по ID
-func GetTeam(teamID int) (*teamModel, error) {
-	if GlobalDB == nil {
-		return nil, fmt.Errorf("database connection not initialized")
-	}
+// GetTeam возвращает команду по ID
+func (r *Repository) GetTeam(ctx context.Context, teamID uuid.UUID) (*entity.Team, error) {
+	const query = `
+		SELECT id, name, owner_id, created_at, updated_at 
+		FROM teams 
+		WHERE id = $1
+	`
 
-	var team teamModel
-	err := GlobalDB.QueryRow(
-		"SELECT id, name, owner_id, created_at, updated_at FROM teams WHERE id = $1",
-		teamID,
-	).Scan(&team.ID, &team.Name, &team.OwnerID, &team.CreatedAt, &team.UpdatedAt)
-
+	var team entity.Team
+	err := r.Client.GetContext(ctx, &team, query, teamID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("team not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, wrapper.Wrap(errors.New("team not found"))
 		}
-		log.Printf("DB Error fetching team %d: %v", teamID, err)
-		return nil, fmt.Errorf("failed to fetch team")
+		r.Logger.ErrorContext(ctx, "failed to get team",
+			slog.String("team_id", teamID.String()),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
 	}
 
 	return &team, nil
 }
 
-// GetTeamMembers - Получить участников команды
-func GetTeamMembers(teamID int) ([]teamModelMember, error) {
-	if GlobalDB == nil {
-		return nil, fmt.Errorf("database connection not initialized")
-	}
-
-	query := `
+// GetTeamMembers возвращает всех участников команды
+func (r *Repository) GetTeamMembers(ctx context.Context, teamID uuid.UUID) ([]entity.TeamMember, error) {
+	const query = `
 		SELECT tm.id, tm.team_id, tm.user_id, tm.role, tm.invited_by, tm.joined_at,
 		       u.id, u.email, u.balance, u.status
 		FROM team_members tm
@@ -115,198 +123,188 @@ func GetTeamMembers(teamID int) ([]teamModelMember, error) {
 		WHERE tm.team_id = $1
 		ORDER BY tm.joined_at ASC
 	`
-	rows, err := GlobalDB.Query(query, teamID)
+
+	rows, err := r.Client.QueryContext(ctx, query, teamID)
 	if err != nil {
-		log.Printf("DB Error fetching team members for team %d: %v", teamID, err)
-		return nil, fmt.Errorf("failed to fetch team members")
+		r.Logger.ErrorContext(ctx, "failed to get team members",
+			slog.String("team_id", teamID.String()),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
 	}
 	defer rows.Close()
 
-	var members []teamModelMember
+	var members []entity.TeamMember
 	for rows.Next() {
-		var member teamModelMember
-		var user entity.User
-		var invitedBy sql.NullInt64
+		var m entity.TeamMember
+		var u entity.User
+		var invitedBy sql.NullString
 
 		err := rows.Scan(
-			&member.ID, &member.TeamID, &member.UserID, &member.Role,
-			&invitedBy, &member.JoinedAt,
-			&user.ID, &user.Email, &user.Balance, &user.Status,
+			&m.ID, &m.TeamID, &m.UserID, &m.Role,
+			&invitedBy, &m.JoinedAt,
+			&u.ID, &u.Email, &u.Balance, &u.Status,
 		)
 		if err != nil {
-			log.Printf("Error scanning team member: %v", err)
+			r.Logger.ErrorContext(ctx, "failed to scan team member", slog.Any("error", err))
 			continue
 		}
 
 		if invitedBy.Valid {
-			invitedByVal := int(invitedBy.Int64)
-			member.InvitedBy = &invitedByVal
+			m.InvitedBy = &invitedBy.String
 		}
 
-		member.User = &user
-		members = append(members, member)
+		m.User = &u
+		members = append(members, m)
 	}
 
 	return members, nil
 }
 
-// InviteTeamMember - Пригласить участника в команду
-func InviteTeamMember(teamID int, inviterID int, email string, role string) error {
-	if GlobalDB == nil {
-		return fmt.Errorf("database connection not initialized")
-	}
-
-	// 1. Проверить права приглашающего (должен быть owner или admin)
-	hasAccess, inviterRole, err := CheckTeamAccess(teamID, inviterID)
+// InviteTeamMember приглашает пользователя в команду по email
+func (r *Repository) InviteTeamMember(ctx context.Context, teamID, inviterID uuid.UUID, email, role string) error {
+	// Проверка прав приглашающего
+	hasAccess, inviterRole, err := r.CheckTeamAccess(ctx, teamID, inviterID)
 	if err != nil || !hasAccess {
-		return fmt.Errorf("access denied")
+		return wrapper.Wrap(errors.New("access denied"))
 	}
 	if inviterRole != "owner" && inviterRole != "admin" {
-		return fmt.Errorf("insufficient permissions: only owner or admin can invite members")
+		return wrapper.Wrap(errors.New("insufficient permissions: only owner or admin can invite"))
 	}
 
-	// 2. Найти пользователя по email
-	user, err := GetUserByEmail(email)
+	// Находим пользователя по email
+	user, err := r.userRepo.GetUserByEmail(ctx, email)
 	if err != nil {
-		return fmt.Errorf("user with email %s not found", email)
+		return wrapper.Wrap(fmt.Errorf("user with email %s not found", email))
 	}
 
-	// 3. Проверить, что пользователь еще не в команде
-	var existingMemberID int
-	err = GlobalDB.QueryRow(
-		"SELECT id FROM team_members WHERE team_id = $1 AND user_id = $2",
-		teamID, user.ID,
-	).Scan(&existingMemberID)
+	// Проверяем, не состоит ли уже в команде
+	var existingID uuid.UUID
+	err = r.Client.GetContext(ctx, &existingID,
+		"SELECT id FROM team_members WHERE team_id = $1 AND user_id = $2 LIMIT 1",
+		teamID, user.ID)
 	if err == nil {
-		return fmt.Errorf("user is already a member of this team")
+		return nil // уже участник — не ошибка
 	}
 
-	// 4. Валидация роли
 	if role != "admin" && role != "member" {
-		return fmt.Errorf("invalid role: must be 'admin' or 'member'")
+		return wrapper.Wrap(errors.New("invalid role: must be 'admin' or 'member'"))
 	}
 
-	// 5. Добавить участника
-	_, err = GlobalDB.Exec(
-		`INSERT INTO team_members (team_id, user_id, role, invited_by) 
-		 VALUES ($1, $2, $3, $4)`,
-		teamID, user.ID, role, inviterID,
-	)
+	const query = `
+		INSERT INTO team_members (team_id, user_id, role, invited_by)
+		VALUES ($1, $2, $3, $4)
+	`
+
+	_, err = r.Client.ExecContext(ctx, query, teamID, user.ID, role, inviterID)
 	if err != nil {
-		log.Printf("DB Error inviting team member: %v", err)
-		return fmt.Errorf("failed to invite team member")
+		r.Logger.ErrorContext(ctx, "failed to invite team member",
+			slog.String("team_id", teamID.String()),
+			slog.String("email", email),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
-	log.Printf("✅ User %d invited to team %d as %s by user %d", user.ID, teamID, role, inviterID)
+	r.Logger.InfoContext(ctx, "user invited to team",
+		slog.String("team_id", teamID.String()),
+		slog.String("email", email),
+		slog.String("role", role))
+
 	return nil
 }
 
-// RemoveTeamMember - Удалить участника из команды
-func RemoveTeamMember(teamID int, userID int, removerID int) error {
-	if GlobalDB == nil {
-		return fmt.Errorf("database connection not initialized")
-	}
-
-	// 1. Проверить права удаляющего
-	hasAccess, removerRole, err := CheckTeamAccess(teamID, removerID)
+// RemoveTeamMember удаляет участника из команды
+func (r *Repository) RemoveTeamMember(ctx context.Context, teamID, userID, removerID uuid.UUID) error {
+	hasAccess, removerRole, err := r.CheckTeamAccess(ctx, teamID, removerID)
 	if err != nil || !hasAccess {
-		return fmt.Errorf("access denied")
+		return wrapper.Wrap(errors.New("access denied"))
 	}
 	if removerRole != "owner" && removerRole != "admin" {
-		return fmt.Errorf("insufficient permissions: only owner or admin can remove members")
+		return wrapper.Wrap(errors.New("insufficient permissions"))
 	}
 
-	// 2. Нельзя удалить владельца команды
+	// Нельзя удалить owner'а
 	var memberRole string
-	err = GlobalDB.QueryRow(
+	err = r.Client.GetContext(ctx, &memberRole,
 		"SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2",
-		teamID, userID,
-	).Scan(&memberRole)
+		teamID, userID)
 	if err != nil {
-		return fmt.Errorf("member not found")
+		return wrapper.Wrap(errors.New("member not found"))
 	}
 	if memberRole == "owner" {
-		return fmt.Errorf("cannot remove team owner")
+		return wrapper.Wrap(errors.New("cannot remove team owner"))
 	}
 
-	// 3. Удалить участника
-	_, err = GlobalDB.Exec(
+	_, err = r.Client.ExecContext(ctx,
 		"DELETE FROM team_members WHERE team_id = $1 AND user_id = $2",
-		teamID, userID,
-	)
+		teamID, userID)
 	if err != nil {
-		log.Printf("DB Error removing team member: %v", err)
-		return fmt.Errorf("failed to remove team member")
+		r.Logger.ErrorContext(ctx, "failed to remove team member",
+			slog.String("team_id", teamID.String()),
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
-	log.Printf("✅ User %d removed from team %d by user %d", userID, teamID, removerID)
+	r.Logger.InfoContext(ctx, "user removed from team",
+		slog.String("team_id", teamID.String()),
+		slog.String("user_id", userID.String()))
+
 	return nil
 }
 
-// UpdateTeamMemberRole - Изменить роль участника
-func UpdateTeamMemberRole(teamID int, userID int, newRole string, updaterID int) error {
-	if GlobalDB == nil {
-		return fmt.Errorf("database connection not initialized")
-	}
-
-	// 1. Проверить права (только owner может менять роли)
-	hasAccess, updaterRole, err := CheckTeamAccess(teamID, updaterID)
+// UpdateTeamMemberRole изменяет роль участника
+func (r *Repository) UpdateTeamMemberRole(ctx context.Context, teamID, userID uuid.UUID, newRole string, updaterID uuid.UUID) error {
+	hasAccess, updaterRole, err := r.CheckTeamAccess(ctx, teamID, updaterID)
 	if err != nil || !hasAccess {
-		return fmt.Errorf("access denied")
+		return wrapper.Wrap(errors.New("access denied"))
 	}
 	if updaterRole != "owner" {
-		return fmt.Errorf("insufficient permissions: only owner can change roles")
+		return wrapper.Wrap(errors.New("only owner can change roles"))
 	}
 
-	// 2. Валидация новой роли
 	if newRole != "admin" && newRole != "member" {
-		return fmt.Errorf("invalid role: must be 'admin' or 'member'")
+		return wrapper.Wrap(errors.New("invalid role"))
 	}
 
-	// 3. Нельзя изменить роль владельца
 	var currentRole string
-	err = GlobalDB.QueryRow(
+	err = r.Client.GetContext(ctx, &currentRole,
 		"SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2",
-		teamID, userID,
-	).Scan(&currentRole)
+		teamID, userID)
 	if err != nil {
-		return fmt.Errorf("member not found")
+		return wrapper.Wrap(errors.New("member not found"))
 	}
 	if currentRole == "owner" {
-		return fmt.Errorf("cannot change owner role")
+		return wrapper.Wrap(errors.New("cannot change owner role"))
 	}
 
-	// 4. Обновить роль
-	_, err = GlobalDB.Exec(
+	_, err = r.Client.ExecContext(ctx,
 		"UPDATE team_members SET role = $1 WHERE team_id = $2 AND user_id = $3",
-		newRole, teamID, userID,
-	)
+		newRole, teamID, userID)
 	if err != nil {
-		log.Printf("DB Error updating team member role: %v", err)
-		return fmt.Errorf("failed to update team member role")
+		r.Logger.ErrorContext(ctx, "failed to update team member role",
+			slog.String("team_id", teamID.String()),
+			slog.String("user_id", userID.String()),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
-	log.Printf("✅ User %d role updated to %s in team %d by user %d", userID, newRole, teamID, updaterID)
 	return nil
 }
 
-// CheckTeamAccess - Проверить доступ пользователя к команде
-func CheckTeamAccess(teamID int, userID int) (bool, string, error) {
-	if GlobalDB == nil {
-		return false, "", fmt.Errorf("database connection not initialized")
-	}
+// CheckTeamAccess проверяет доступ пользователя к команде
+func (r *Repository) CheckTeamAccess(ctx context.Context, teamID, userID uuid.UUID) (bool, string, error) {
+	const query = `
+		SELECT role FROM team_members 
+		WHERE team_id = $1 AND user_id = $2
+	`
 
 	var role string
-	err := GlobalDB.QueryRow(
-		"SELECT role FROM team_members WHERE team_id = $1 AND user_id = $2",
-		teamID, userID,
-	).Scan(&role)
-
+	err := r.Client.GetContext(ctx, &role, query, teamID, userID)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return false, "", nil // Нет доступа, но это не ошибка
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
 		}
-		return false, "", err
+		return false, "", wrapper.Wrap(err)
 	}
 
 	return true, role, nil
