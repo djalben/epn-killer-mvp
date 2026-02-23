@@ -7,7 +7,7 @@ import (
 
 type Repository struct {
 	*repository.PostgresRepo
-	userRepo user.Repository // ← поле для user-репозитория
+	userRepo user.Repository
 }
 
 func New(repo *repository.PostgresRepo, userRepo user.Repository) *Repository {

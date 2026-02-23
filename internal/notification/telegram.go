@@ -10,8 +10,8 @@ import (
 // SendTelegramMessage отправляет сообщение в Telegram.
 // Если задан TELEGRAM_BOT_TOKEN (через telegram.SetBotToken в main), вызывается реальная отправка.
 // Иначе — только лог (MVP-режим).
-func SendTelegramMessage(chatID int64, message string) {
-	if chatID == 0 {
+func SendTelegramMessage(chatID *int64, message string) {
+	if chatID == nil || *chatID == 0 {
 		return
 	}
 	// Реальная отправка через пакет telegram (если токен задан в main)
@@ -27,8 +27,8 @@ func FormatAuthMessage(status, message string, cardID int, amount float64) strin
 	if status == "APPROVED" {
 		emoji = "✅"
 	}
-	
+
 	// В MVP используем простой формат
-	return fmt.Sprintf("%s Транзакция по карте %d:\nСтатус: %s\nСумма: %.2f\nСообщение: %s", 
+	return fmt.Sprintf("%s Транзакция по карте %d:\nСтатус: %s\nСумма: %.2f\nСообщение: %s",
 		emoji, cardID, status, amount, message)
 }

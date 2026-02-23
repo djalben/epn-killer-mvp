@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -29,7 +28,7 @@ type FundRequest struct {
 
 // AuthRequest - Запрос на авторизацию карты (используется в api/test_authorize.go)
 type AuthRequest struct {
-	CardID       int             `json:"card_id"`
+	CardID       string          `json:"card_id"`
 	Amount       decimal.Decimal `json:"amount"`
 	MerchantName string          `json:"merchant_name"`
 }
@@ -38,21 +37,20 @@ type AuthRequest struct {
 
 // User - Структура для пользователя
 type User struct {
-	ID           string          `json:"id"`
-	Email        string          `json:"email"`
-	PasswordHash string          `json:"-"`
-	Balance      decimal.Decimal `json:"balance"`
-	CreatedAt    time.Time       `json:"created_at"`
-	Status       string          `json:"status"`
-	// ИСПРАВЛЕНО: Используем sql.NullInt64 для полей, которые могут быть NULL
-	TeamID         sql.NullInt64 `json:"team_id"`
-	TelegramChatID sql.NullInt64 `json:"telegram_chat_id"`
+	ID             string          `json:"id"`
+	Email          string          `json:"email"`
+	PasswordHash   string          `json:"-"`
+	Balance        decimal.Decimal `json:"balance"`
+	CreatedAt      time.Time       `json:"created_at"`
+	Status         string          `json:"status"`
+	TeamID         *string         `json:"team_id,omitempty"` // или *uuid.UUID, если в entity UUID — строка
+	TelegramChatID *int64          `json:"telegram_chat_id,omitempty"`
 }
 
 // APIKey - Структура для ключей
 type APIKey struct {
 	Key         string    `json:"api_key"`
-	UserID      int       `json:"user_id"`
+	UserID      string    `json:"user_id"`
 	Permissions string    `json:"permissions"`
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
@@ -61,17 +59,17 @@ type APIKey struct {
 // DepositRequest - Структура для запроса пополнения (используется API Key)
 type DepositRequest struct {
 	Amount decimal.Decimal `json:"amount"`
-	UserID int             `json:"user_id"`
+	UserID string          `json:"user_id"`
 }
 
 // --- СТРУКТУРЫ ТРАНЗАКЦИЙ И ОТЧЕТНОСТИ ---
 
 // Transaction - Структура для транзакции
 type Transaction struct {
-	TransactionID   int             `json:"transaction_id"`
-	UserID          int             `json:"user_id"`
+	TransactionID   string          `json:"transaction_id"`
+	UserID          string          `json:"user_id"`
 	UserEmail       string          `json:"user_email,omitempty"`
-	CardID          *int            `json:"card_id,omitempty"`
+	CardID          *string         `json:"card_id,omitempty"`
 	CardLast4Digits string          `json:"card_last_4_digits,omitempty"`
 	Amount          decimal.Decimal `json:"amount"`
 	Fee             decimal.Decimal `json:"fee"`
@@ -227,4 +225,32 @@ type ReferralStats struct {
 	ActiveReferrals int             `json:"active_referrals"`
 	TotalCommission decimal.Decimal `json:"total_commission"`
 	ReferralCode    string          `json:"referral_code"`
+}
+
+// ReportSummary - Агрегированная сводка по кликам
+// Это главная структура, которую мы будем возвращать пользователю (UI-отчет).
+type ReportSummary struct {
+	Date         time.Time `json:"date"`          // Дата, по которой сгруппированы данные
+	SubID        string    `json:"sub_id"`        // SubID, по которому сгруппированы данные
+	TotalClicks  int       `json:"total_clicks"`  // Общее количество кликов за период
+	UniqueClicks int       `json:"unique_clicks"` // Количество уникальных кликов (по IP)
+	// Spend - Будет добавлено, когда реализуем финансовую логику (ЭТАП 2)
+	// Conversions - Будет добавлено, когда реализуем логику конверсий
+}
+
+// SpendReportSummary - Агрегированная сводка по расходам (для трекеров)
+// Используется для API-интеграции (GET /api/v1/data/spends)
+type SpendReportSummary struct {
+	Date             time.Time `json:"date"`              // Дата, по которой сгруппированы данные
+	SubID            string    `json:"sub_id"`            // SubID, по которому сгруппированы данные
+	TotalSpend       float64   `json:"total_spend"`       // Общая сумма трат за период (в USD)
+	TransactionCount int       `json:"transaction_count"` // Общее количество транзакций
+}
+
+// ReportRequest - Структура для парсинга параметров запроса отчета
+type ReportRequest struct {
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	SubID     string    `json:"sub_id"`   // Опциональный фильтр
+	GroupBy   string    `json:"group_by"` // 'day', 'subid', 'offer'
 }

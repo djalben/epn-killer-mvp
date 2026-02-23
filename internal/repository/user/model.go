@@ -13,7 +13,7 @@ type userModel struct {
 	PasswordHash   string    `db:"password_hash"`    // Хэш пароля
 	Balance        float64   `db:"balance"`          // Основной баланс (Just-in-Time)
 	Status         string    `db:"status"`           // ACTIVE, BLOCKED, PENDING_KYC и т.д.
-	TelegramChatID *int64    `db:"telegram_chat_id"` // NULLable
+	TelegramChatID *int64     `db:"telegram_chat_id"` // NULLable
 	CreatedAt      time.Time `db:"created_at"`       // Автоматически NOW()
 }
 

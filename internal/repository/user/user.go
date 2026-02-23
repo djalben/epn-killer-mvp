@@ -4,125 +4,105 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
-	"log"
+	"log/slog"
+
+	"github.com/google/uuid"
+	"gitlab.com/libs-artifex/wrapper/v2"
+
+	"github.com/djalben/epn-killer-mvp/internal/entity"
 )
 
-// GlobalDB должен быть объявлен в этом пакете (например, globals.go)
-
-// --- ФУНКЦИИ АУТЕНТИФИКАЦИИ И ПОЛУЧЕНИЯ ДАННЫХ ---
-
-// CreateUser создает нового пользователя и сохраняет его в БД.
-func CreateUser(user userModel) (userModel, error) {
-	if GlobalDB == nil {
-		return userModel{}, fmt.Errorf("database connection not initialized")
-	}
-
-	queryUser := `
+// CreateUser создаёт нового пользователя
+func (r *Repository) CreateUser(ctx context.Context, email, passwordHash string) (*entity.User, error) {
+	const query = `
 		INSERT INTO users (email, password_hash, balance, status) 
-		VALUES ($1, $2, 0.00, 'ACTIVE') 
-		RETURNING id, created_at, balance
+		VALUES ($1, $2, 0.0000, 'ACTIVE') 
+		RETURNING id, email, balance, status, created_at
 	`
-	var createdUser userModel
 
-	err := GlobalDB.QueryRow(queryUser, user.Email, user.PasswordHash).
-		Scan(&createdUser.ID, &createdUser.CreatedAt, &createdUser.Balance)
-
+	var user entity.User
+	err := r.Client.QueryRowContext(ctx, query, email, passwordHash).
+		Scan(&user.ID, &user.Email, &user.Balance, &user.Status, &user.CreatedAt)
 	if err != nil {
-		log.Printf("Error creating user %s: %v", user.Email, err)
-		return userModel{}, err
+		r.Logger.ErrorContext(ctx, "failed to create user",
+			slog.String("email", email),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
 	}
 
-	createdUser.Email = user.Email
+	r.Logger.InfoContext(ctx, "user created successfully",
+		slog.String("user_id", user.ID),
+		slog.String("email", user.Email))
 
-	log.Printf("User %s created with ID: %d", createdUser.Email, createdUser.ID)
-
-	// Генерируем API-ключ для нового пользователя.
-	// TODO: вынести это отдельно.
-	_, err = GenerateAPIKey(createdUser.ID)
-	if err != nil {
-		log.Printf("WARNING: Could not generate API key for user %d on creation: %v", createdUser.ID, err)
-	}
-
-	return createdUser, nil
+	return &user, nil
 }
 
-// GetUserByEmail - Находит пользователя по email.
-func (r *Repository) GetUserByEmail(ctx context.Context, email string) (userModel, error) {
-	if GlobalDB == nil {
-		return userModel{}, fmt.Errorf("database connection not initialized")
-	}
+// GetUserByEmail находит пользователя по email
+func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
+	const query = `
+		SELECT id, email, password_hash, balance, status, telegram_chat_id, created_at 
+		FROM users 
+		WHERE email = $1
+	`
 
-	// ИСПРАВЛЕНО: TelegramChatID сканируется напрямую в модель (sql.NullInt64)
-	query := `SELECT id, email, password_hash, balance, created_at, telegram_chat_id FROM users WHERE email = $1`
-
-	var user userModel
-
-	err := GlobalDB.QueryRow(query, email).Scan(
-		&user.ID,
-		&user.Email,
-		&user.PasswordHash,
-		&user.Balance,
-		&user.CreatedAt,
-		&user.TelegramChatID, // Сканируем sql.NullInt64
-	)
-
+	var user entity.User
+	err := r.Client.GetContext(ctx, &user, query, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return userModel{}, errors.New("пользователь не найден")
+			return nil, wrapper.Wrap(errors.New("user not found"))
 		}
-		log.Printf("DB Error GetUserByEmail: %v", err)
-		return userModel{}, err
+		r.Logger.ErrorContext(ctx, "failed to get user by email",
+			slog.String("email", email),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
 	}
 
-	return user, nil
+	return &user, nil
 }
 
-// GetUserByID - Находит пользователя по ID.
-func GetUserByID(userID int) (userModel, error) {
-	if GlobalDB == nil {
-		return userModel{}, fmt.Errorf("database connection not initialized")
-	}
+// GetUserByID находит пользователя по ID
+func (r *Repository) GetUserByID(ctx context.Context, id uuid.UUID) (*entity.User, error) {
+	const query = `
+		SELECT id, email, password_hash, balance, status, telegram_chat_id, created_at 
+		FROM users 
+		WHERE id = $1
+	`
 
-	// ИСПРАВЛЕНО: TelegramChatID сканируется напрямую в модель (sql.NullInt64)
-	query := `SELECT id, email, password_hash, balance, created_at, telegram_chat_id FROM users WHERE id = $1`
-
-	var user userModel
-
-	err := GlobalDB.QueryRow(query, userID).Scan(
-		&user.ID,
-		&user.Email,
-		&user.PasswordHash,
-		&user.Balance,
-		&user.CreatedAt,
-		&user.TelegramChatID, // Сканируем sql.NullInt64
-	)
-
+	var user entity.User
+	err := r.Client.GetContext(ctx, &user, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return userModel{}, errors.New("пользователь не найден")
+			return nil, wrapper.Wrap(errors.New("user not found"))
 		}
-		log.Printf("DB Error GetUserByID: %v", err)
-		return userModel{}, err
+		r.Logger.ErrorContext(ctx, "failed to get user by id",
+			slog.String("user_id", id.String()),
+			slog.Any("error", err))
+		return nil, wrapper.Wrap(err)
 	}
 
-	return user, nil
+	return &user, nil
 }
 
-// UpdateTelegramChatID - Обновляет TelegramChatID пользователя.
-// Принимает int, так как ChatID в Go - это int, а в БД - BIGINT.
-func UpdateTelegramChatID(userID int, chatID int) error {
-	if GlobalDB == nil {
-		return fmt.Errorf("database connection not initialized")
+// UpdateTelegramChatID обновляет Telegram Chat ID пользователя
+func (r *Repository) UpdateTelegramChatID(ctx context.Context, userID uuid.UUID, chatID int64) error {
+	const query = `
+		UPDATE users 
+		SET telegram_chat_id = $1 
+		WHERE id = $2
+	`
+
+	_, err := r.Client.ExecContext(ctx, query, chatID, userID)
+	if err != nil {
+		r.Logger.ErrorContext(ctx, "failed to update telegram chat id",
+			slog.String("user_id", userID.String()),
+			slog.Int64("chat_id", chatID),
+			slog.Any("error", err))
+		return wrapper.Wrap(err)
 	}
 
-	_, err := GlobalDB.Exec(
-		"UPDATE users SET telegram_chat_id = $1 WHERE id = $2",
-		chatID, userID,
-	)
-	if err != nil {
-		log.Printf("DB Error UpdateTelegramChatID: %v", err)
-		return fmt.Errorf("не удалось обновить telegram_chat_id")
-	}
+	r.Logger.InfoContext(ctx, "telegram chat id updated",
+		slog.String("user_id", userID.String()),
+		slog.Int64("chat_id", chatID))
+
 	return nil
 }
