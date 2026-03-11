@@ -9,3 +9,10 @@
 
 ## @AntiFraudExpert
 Эксперт по антифроду: лимиты, 3 неудачных попытки, блокировка карт.
+
+## Skills (.cursor/skills/)
+- **@add-card-type** — добавление нового типа карты
+- **@implement-antifraud** — реализация антифрода
+- **@add-migration** — создание миграций
+- **@use-wrapper** — использование wrapper для ошибок
+- **@use-envparse** — парсинг конфига через envparse

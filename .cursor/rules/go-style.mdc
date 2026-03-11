@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # Go Style Rules для XPLR
 
 - Makefile используй строго из корня (цели docker-up, migrate-create и т.д.)
