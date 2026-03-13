@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/djalben/epn-killer-mvp/internal/lib/logger"
+	"github.com/djalben/epn-killer-mvp/internal/infrastructure/logger"
 )
 
 // Create - создание хандлера.

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/djalben/epn-killer-mvp/internal/lib/logger"
+	"github.com/djalben/epn-killer-mvp/internal/infrastructure/logger"
 )
 
 type commonHandler struct {

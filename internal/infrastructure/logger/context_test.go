@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/djalben/epn-killer-mvp/internal/lib/logger"
+	"github.com/djalben/epn-killer-mvp/internal/infrastructure/logger"
 )
 
 func TestContextWithGroups(t *testing.T) {
