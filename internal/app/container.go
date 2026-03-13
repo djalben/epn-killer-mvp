@@ -15,11 +15,10 @@ import (
 	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
-// Container — главный DI-контейнер проекта.
+// Container — главный DI-контейнер.
 type Container struct {
-	DB *sqlx.DB // храним для корректного закрытия
+	DB *sqlx.DB
 
-	// Репозитории
 	WalletRepo      ports.WalletRepository
 	CardRepo        ports.CardRepository
 	TransactionRepo ports.TransactionRepository
@@ -27,7 +26,6 @@ type Container struct {
 	UserRepo        ports.UserRepository
 	CommissionRepo  ports.CommissionConfigRepository
 
-	// UseCases
 	WalletUseCase      *wallet.UseCase
 	CardUseCase        *card.UseCase
 	TransactionUseCase *transaction.UseCase
@@ -35,17 +33,17 @@ type Container struct {
 	CommissionUseCase  *commission.UseCase
 }
 
-// NewContainer — создаёт и собирает всё приложение.
-func NewContainer(cfg *config.Config) (*Container, error) {
+// NewContainer — создаёт всё приложение.
+func NewContainer(cfg *config.ENV) (*Container, error) { // ← исправлено на ENV
 	ctx := context.Background()
 
 	// Подключаемся к БД
-	db, err := postgres.Connect(ctx, cfg.PostgresDSN)
+	db, err := postgres.Connect(ctx, cfg.PostgresDSN) // ← исправлено
 	if err != nil {
 		return nil, wrapper.Wrap(err)
 	}
 
-	// Создаём репозитории (теперь с store)
+	// Репозитории
 	walletRepo := postgres.NewWalletRepository(db)
 	cardRepo := postgres.NewCardRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
@@ -71,10 +69,11 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 	}, nil
 }
 
-// Close корректно закрывает все соединения с БД.
+// Close — корректное завершение.
 func (c *Container) Close() error {
 	if c.DB != nil {
-		return c.DB.Close()
+		return wrapper.Wrap(c.DB.Close())
 	}
+
 	return nil
 }
