@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
 var jwtKey = []byte("my_super_secret_jwt_key")
 
-// GenerateJWT создает JWT для данного ID пользователя
+// GenerateJWT создает JWT для данного ID пользователя.
 func GenerateJWT(userID int) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := jwt.MapClaims{
@@ -18,16 +19,18 @@ func GenerateJWT(userID int) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtKey)
 
+	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		log.Printf("Error creating JWT: %v", err)
-		return "", err
+
+		return "", wrapper.Wrap(err)
 	}
+
 	return tokenString, nil
 }
 
-// GetJWTSecret возвращает секретный ключ для проверки токена
+// GetJWTSecret возвращает секретный ключ для проверки токена.
 func GetJWTSecret() []byte {
 	return jwtKey
 }

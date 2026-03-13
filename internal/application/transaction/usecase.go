@@ -6,6 +6,7 @@ import (
 
 	"github.com/djalben/epn-killer-mvp/internal/domain"
 	"github.com/djalben/epn-killer-mvp/internal/ports"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
 type UseCase struct {
@@ -16,12 +17,22 @@ func NewUseCase(tr ports.TransactionRepository) *UseCase {
 	return &UseCase{txRepo: tr}
 }
 
-// GetWalletTransactions — история по кошельку
+// GetWalletTransactions — история по кошельку.
 func (uc *UseCase) GetWalletTransactions(ctx context.Context, userID domain.UUID, from, to time.Time) ([]*domain.Transaction, error) {
-	return uc.txRepo.GetWalletTransactions(ctx, userID, from, to)
+	list, err := uc.txRepo.GetWalletTransactions(ctx, userID, from, to)
+	if err != nil {
+		return nil, wrapper.Wrap(err)
+	}
+
+	return list, nil
 }
 
-// GetCardTransactions — история по одной карте
+// GetCardTransactions — история по одной карте.
 func (uc *UseCase) GetCardTransactions(ctx context.Context, cardID domain.UUID, from, to time.Time) ([]*domain.Transaction, error) {
-	return uc.txRepo.GetCardTransactions(ctx, cardID, from, to)
+	list, err := uc.txRepo.GetCardTransactions(ctx, cardID, from, to)
+	if err != nil {
+		return nil, wrapper.Wrap(err)
+	}
+
+	return list, nil
 }

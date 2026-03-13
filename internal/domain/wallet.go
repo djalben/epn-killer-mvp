@@ -6,9 +6,9 @@ import (
 
 type Wallet struct {
 	ID        UUID      `json:"id"`
-	UserID    UUID      `json:"user_id"`
+	UserID    UUID      `json:"userId"`
 	Balance   Numeric   `json:"balance"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 func NewWallet(userID UUID) *Wallet {
@@ -24,7 +24,9 @@ func (w *Wallet) TopUp(amount Numeric) error {
 	if amount.LessThanOrEqual(NewNumeric(0)) {
 		return NewInvalidInput("amount must be positive")
 	}
+
 	w.Balance = w.Balance.Add(amount)
+
 	return nil
 }
 
@@ -32,9 +34,12 @@ func (w *Wallet) Withdraw(amount Numeric) error {
 	if amount.LessThanOrEqual(NewNumeric(0)) {
 		return NewInvalidInput("amount must be positive")
 	}
+
 	if w.Balance.LessThan(amount) {
 		return NewInsufficientFunds()
 	}
+
 	w.Balance = w.Balance.Sub(amount)
+
 	return nil
 }

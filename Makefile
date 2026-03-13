@@ -34,6 +34,7 @@ test: ## Тесты
 
 bin-deps: ## Установить goose и другие инструменты
 	go install github.com/pressly/goose/v3/cmd/goose@latest
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
 # === DOCKER ===
 docker-up: ## Запустить dev-окружение (основной compose в корне)

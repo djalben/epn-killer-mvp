@@ -5,6 +5,7 @@ import (
 
 	"github.com/djalben/epn-killer-mvp/internal/domain"
 	"github.com/djalben/epn-killer-mvp/internal/ports"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
 type UseCase struct {
@@ -16,13 +17,28 @@ func NewUseCase(cr ports.CommissionConfigRepository) *UseCase {
 }
 
 func (uc *UseCase) GetByKey(ctx context.Context, key string) (*domain.CommissionConfig, error) {
-	return uc.configRepo.GetByKey(ctx, key)
+	cfg, err := uc.configRepo.GetByKey(ctx, key)
+	if err != nil {
+		return nil, wrapper.Wrap(err) // ← вот фикс
+	}
+
+	return cfg, nil
 }
 
 func (uc *UseCase) Update(ctx context.Context, cfg *domain.CommissionConfig) error {
-	return uc.configRepo.Update(ctx, cfg)
+	err := uc.configRepo.Update(ctx, cfg)
+	if err != nil {
+		return wrapper.Wrap(err) // ← вот фикс
+	}
+
+	return nil
 }
 
 func (uc *UseCase) ListAll(ctx context.Context) ([]*domain.CommissionConfig, error) {
-	return uc.configRepo.ListAll(ctx)
+	list, err := uc.configRepo.ListAll(ctx)
+	if err != nil {
+		return nil, wrapper.Wrap(err) // ← вот фикс
+	}
+
+	return list, nil
 }

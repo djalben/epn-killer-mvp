@@ -5,6 +5,7 @@ import (
 
 	"github.com/djalben/epn-killer-mvp/internal/domain"
 	"github.com/djalben/epn-killer-mvp/internal/ports"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
 type UseCase struct {
@@ -20,53 +21,61 @@ func NewUseCase(cr ports.CardRepository, wr ports.WalletRepository, tr ports.Tra
 func (uc *UseCase) BuyCard(ctx context.Context, userID domain.UUID, cardType domain.CardType) (*domain.Card, error) {
 	card, err := domain.NewCard(userID, cardType, "TEMP_PROVIDER_ID")
 	if err != nil {
-		return nil, err
+		return nil, wrapper.Wrap(err)
 	}
 
-	if err := uc.cardRepo.Save(ctx, card); err != nil {
-		return nil, err
+	err = uc.cardRepo.Save(ctx, card)
+	if err != nil {
+		return nil, wrapper.Wrap(err)
 	}
 
 	tx := domain.NewTransaction(userID, &card.ID, domain.NewNumeric(2.00), domain.NewNumeric(0), "CARD_ISSUE", "COMPLETED", "Выпуск карты")
-	return card, uc.txRepo.Save(ctx, tx)
+
+	return card, wrapper.Wrap(uc.txRepo.Save(ctx, tx))
 }
 
 func (uc *UseCase) TopUpCard(ctx context.Context, userID domain.UUID, cardID domain.UUID, amount domain.Numeric) error {
 	wallet, err := uc.walletRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return err
+		return wrapper.Wrap(err)
 	}
 
 	card, err := uc.cardRepo.GetByID(ctx, cardID)
 	if err != nil {
-		return err
+		return wrapper.Wrap(err)
 	}
 
-	if err := wallet.Withdraw(amount); err != nil {
-		return err
+	err = wallet.Withdraw(amount)
+	if err != nil {
+		return wrapper.Wrap(err)
 	}
+
 	card.Balance = card.Balance.Add(amount)
 
-	if err := uc.walletRepo.Update(ctx, wallet); err != nil {
-		return err
+	err = uc.walletRepo.Update(ctx, wallet)
+	if err != nil {
+		return wrapper.Wrap(err)
 	}
-	if err := uc.cardRepo.Update(ctx, card); err != nil {
-		return err
+
+	err = uc.cardRepo.Update(ctx, card)
+	if err != nil {
+		return wrapper.Wrap(err)
 	}
 
 	tx := domain.NewTransaction(userID, &cardID, amount, domain.NewNumeric(0), "TOPUP_CARD", "COMPLETED", "Пополнение карты")
-	return uc.txRepo.Save(ctx, tx)
+
+	return wrapper.Wrap(uc.txRepo.Save(ctx, tx))
 }
 
 func (uc *UseCase) ToggleAutoTopUp(ctx context.Context, cardID domain.UUID, enabled bool, below, amount domain.Numeric) error {
 	card, err := uc.cardRepo.GetByID(ctx, cardID)
 	if err != nil {
-		return err
+		return wrapper.Wrap(err)
 	}
 
 	card.AutoTopUpEnabled = enabled
 	card.AutoTopUpBelow = below
 	card.AutoTopUpAmount = amount
 
-	return uc.cardRepo.Update(ctx, card)
+	return wrapper.Wrap(uc.cardRepo.Update(ctx, card))
 }

@@ -26,33 +26,42 @@ linters:
             - "**/internal/config/**/*.go"
           deny:
             - pkg: "github.com/djalben/epn-killer-mvp"
-        api:
+        domain:
           list-mode: lax
           files:
-            - "**/internal/api/**/*.go"
+            - "**/internal/domain/**/*.go"
           deny:
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/config"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/services"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/usecases"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/repository"
-        repository:
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/..."
+        ports:
           list-mode: lax
           files:
-            - "**/internal/repository/**/*.go"
+            - "**/internal/ports/**/*.go"
           deny:
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/api"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/config"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/services"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/usecases"
-        usecases:
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/application"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/infrastructure"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/transport"
+        application:
           list-mode: lax
           files:
-            - "**/internal/usecases/**/*.go"
+            - "**/internal/application/**/*.go"
           deny:
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/api"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/infrastructure"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/transport"
             - pkg: "github.com/djalben/epn-killer-mvp/internal/config"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/repository"
-            - pkg: "github.com/djalben/epn-killer-mvp/internal/services"
+        infrastructure:
+          list-mode: lax
+          files:
+            - "**/internal/infrastructure/**/*.go"
+          deny:
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/application"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/transport"
+        transport:
+          list-mode: lax
+          files:
+            - "**/internal/transport/**/*.go"
+          deny:
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/config"
+            - pkg: "github.com/djalben/epn-killer-mvp/internal/infrastructure"
   exclusions:
     generated: lax
     presets:

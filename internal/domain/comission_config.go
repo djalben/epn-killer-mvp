@@ -7,7 +7,7 @@ type CommissionConfig struct {
 	Key         string    `json:"key"`
 	Value       Numeric   `json:"value"`
 	Description string    `json:"description"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 const (

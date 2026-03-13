@@ -5,6 +5,7 @@ import (
 
 	"github.com/djalben/epn-killer-mvp/internal/domain"
 	"github.com/djalben/epn-killer-mvp/internal/ports"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
 type UseCase struct {
@@ -19,25 +20,29 @@ func NewUseCase(wr ports.WalletRepository, tr ports.TransactionRepository) *UseC
 func (uc *UseCase) TopUpWallet(ctx context.Context, userID domain.UUID, amount domain.Numeric) error {
 	wallet, err := uc.walletRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return err
+		return wrapper.Wrap(err)
 	}
 
-	if err := wallet.TopUp(amount); err != nil {
-		return err
+	err = wallet.TopUp(amount)
+	if err != nil {
+		return wrapper.Wrap(err)
 	}
 
-	if err := uc.walletRepo.Update(ctx, wallet); err != nil {
-		return err
+	err = uc.walletRepo.Update(ctx, wallet)
+	if err != nil {
+		return wrapper.Wrap(err)
 	}
 
 	tx := domain.NewTransaction(userID, nil, amount, domain.NewNumeric(0), "TOPUP_WALLET", "COMPLETED", "Пополнение по СБП")
-	return uc.txRepo.Save(ctx, tx)
+
+	return wrapper.Wrap(uc.txRepo.Save(ctx, tx))
 }
 
 func (uc *UseCase) GetBalance(ctx context.Context, userID domain.UUID) (domain.Numeric, error) {
 	w, err := uc.walletRepo.GetByUserID(ctx, userID)
 	if err != nil {
-		return domain.NewNumeric(0), err
+		return domain.NewNumeric(0), wrapper.Wrap(err)
 	}
+
 	return w.Balance, nil
 }

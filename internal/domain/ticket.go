@@ -12,15 +12,15 @@ const (
 
 type Ticket struct {
 	ID          UUID         `json:"id"`
-	UserID      UUID         `json:"user_id"`
-	AdminID     *UUID        `json:"admin_id,omitempty"`
-	TGChatID    *int64       `json:"tg_chat_id,omitempty"`
+	UserID      UUID         `json:"userId"`
+	AdminID     *UUID        `json:"adminId,omitempty"`
+	TGChatID    *int64       `json:"tgChatId,omitempty"`
 	Subject     string       `json:"subject"`
 	Status      TicketStatus `json:"status"`
-	UserMessage string       `json:"user_message"`
-	AdminReply  string       `json:"admin_reply,omitempty"`
-	CreatedAt   time.Time    `json:"created_at"`
-	ClosedAt    *time.Time   `json:"closed_at,omitempty"`
+	UserMessage string       `json:"userMessage"`
+	AdminReply  string       `json:"adminReply,omitempty"`
+	CreatedAt   time.Time    `json:"createdAt"`
+	ClosedAt    *time.Time   `json:"closedAt,omitempty"`
 }
 
 func NewTicket(userID UUID, subject, message string, tgChatID *int64) *Ticket {

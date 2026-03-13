@@ -14,27 +14,28 @@ const (
 
 type Card struct {
 	ID               UUID       `json:"id"`
-	UserID           UUID       `json:"user_id"`
-	ProviderCardID   string     `json:"provider_card_id"`
+	UserID           UUID       `json:"userId"`
+	ProviderCardID   string     `json:"providerCardId"`
 	Bin              string     `json:"bin"`
-	Last4Digits      string     `json:"last_4_digits"`
-	CardStatus       string     `json:"card_status"`
+	Last4Digits      string     `json:"last4Digits"`
+	CardStatus       string     `json:"cardStatus"`
 	Nickname         string     `json:"nickname,omitempty"`
-	DailySpendLimit  Numeric    `json:"daily_spend_limit"`
-	FailedAuthCount  int64      `json:"failed_auth_count"`
-	CardType         CardType   `json:"card_type"`
-	AutoTopUpEnabled bool       `json:"auto_topup_enabled"`
-	AutoTopUpBelow   Numeric    `json:"auto_topup_below"`
-	AutoTopUpAmount  Numeric    `json:"auto_topup_amount"`
+	DailySpendLimit  Numeric    `json:"dailySpendLimit"`
+	FailedAuthCount  int64      `json:"failedAuthCount"`
+	CardType         CardType   `json:"cardType"`
+	AutoTopUpEnabled bool       `json:"autoTopupTnabled"`
+	AutoTopUpBelow   Numeric    `json:"autoTopupBelow"`
+	AutoTopUpAmount  Numeric    `json:"autoTopupAmount"`
 	Balance          Numeric    `json:"balance"`
-	ExpiryDate       *time.Time `json:"expiry_date,omitempty"`
-	CreatedAt        time.Time  `json:"created_at"`
+	ExpiryDate       *time.Time `json:"expiryDate,omitempty"`
+	CreatedAt        time.Time  `json:"createdAt"`
 }
 
 func NewCard(userID UUID, cardType CardType, providerCardID string) (*Card, error) {
 	if !isValidCardType(cardType) {
 		return nil, NewInvalidInput("invalid card_type: must be subscriptions, travel or premium")
 	}
+
 	return &Card{
 		ID:              NewUUID(),
 		UserID:          userID,

@@ -6,15 +6,15 @@ import (
 
 type Transaction struct {
 	ID              UUID      `json:"id"`
-	UserID          UUID      `json:"user_id"`
-	CardID          *UUID     `json:"card_id,omitempty"`
+	UserID          UUID      `json:"userId"`
+	CardID          *UUID     `json:"cardId,omitempty"`
 	Amount          Numeric   `json:"amount"`
 	Fee             Numeric   `json:"fee"`
-	TransactionType string    `json:"transaction_type"`
+	TransactionType string    `json:"transactionType"`
 	Status          string    `json:"status"`
 	Details         string    `json:"details"`
-	ProviderTxID    string    `json:"provider_tx_id,omitempty"`
-	ExecutedAt      time.Time `json:"executed_at"`
+	ProviderTxID    string    `json:"providerTxId,omitempty"`
+	ExecutedAt      time.Time `json:"executedAt"`
 }
 
 func NewTransaction(

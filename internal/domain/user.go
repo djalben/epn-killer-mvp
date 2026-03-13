@@ -8,16 +8,18 @@ type User struct {
 	ID             UUID       `json:"id"`
 	Email          string     `json:"email"`
 	PasswordHash   string     `json:"-"`
-	KYCStatus      KYCStatus  `json:"kyc_status"`
+	KYCStatus      KYCStatus  `json:"kycStatus"`
 	Status         UserStatus `json:"status"`
-	TelegramChatID *int64     `json:"telegram_chat_id,omitempty"`
-	ReferralCode   string     `json:"referral_code"`
-	ReferredBy     *UUID      `json:"referred_by,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
+	TelegramChatID *int64     `json:"telegramChatId,omitempty"`
+	ReferralCode   string     `json:"referralCode"`
+	ReferredBy     *UUID      `json:"referredBy,omitempty"`
+	CreatedAt      time.Time  `json:"createdAt"`
 }
 
-type UserStatus string
-type KYCStatus string
+type (
+	UserStatus string
+	KYCStatus  string
+)
 
 const (
 	UserStatusActive  UserStatus = "ACTIVE"
@@ -32,6 +34,7 @@ func NewUser(email, passwordHash string) (*User, error) {
 	if email == "" {
 		return nil, NewInvalidInput("email is required")
 	}
+
 	return &User{
 		ID:           NewUUID(),
 		Email:        email,

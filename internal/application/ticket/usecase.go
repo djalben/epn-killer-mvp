@@ -5,6 +5,7 @@ import (
 
 	"github.com/djalben/epn-killer-mvp/internal/domain"
 	"github.com/djalben/epn-killer-mvp/internal/ports"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
 type UseCase struct {
@@ -17,23 +18,28 @@ func NewUseCase(tr ports.TicketRepository) *UseCase {
 
 func (uc *UseCase) Create(ctx context.Context, userID domain.UUID, subject, message string, tgChatID *int64) (*domain.Ticket, error) {
 	t := domain.NewTicket(userID, subject, message, tgChatID)
-	return t, uc.ticketRepo.Save(ctx, t)
+
+	return t, wrapper.Wrap(uc.ticketRepo.Save(ctx, t))
 }
 
 func (uc *UseCase) Take(ctx context.Context, ticketID domain.UUID, adminID domain.UUID) error {
 	t, err := uc.ticketRepo.GetByID(ctx, ticketID)
 	if err != nil {
-		return err
+		return wrapper.Wrap(err)
 	}
+
 	t.Take(adminID)
-	return uc.ticketRepo.Update(ctx, t)
+
+	return wrapper.Wrap(uc.ticketRepo.Update(ctx, t))
 }
 
 func (uc *UseCase) Close(ctx context.Context, ticketID domain.UUID, reply string) error {
 	t, err := uc.ticketRepo.GetByID(ctx, ticketID)
 	if err != nil {
-		return err
+		return wrapper.Wrap(err)
 	}
+
 	t.Close(reply)
-	return uc.ticketRepo.Update(ctx, t)
+
+	return wrapper.Wrap(uc.ticketRepo.Update(ctx, t))
 }
