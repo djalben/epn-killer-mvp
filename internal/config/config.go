@@ -1,49 +1,43 @@
 package config
 
 import (
-	"os"
-	"time"
+	"gitlab.com/libs-artifex/envparse"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
-// --- Константы Usecases Logic ---
+// ENV — основная конфигурация проекта (берётся из .env + окружения).
+type ENV struct {
+	// База данных
+	PostgresDSN string `env:"POSTGRES_DSN" required:"true"`
 
-// MaxFailedAttempts - Количество отказов, после которого карта автоматически блокируется (Задача 2.4).
-const MaxFailedAttempts = 3
+	// HTTP сервер
+	ServerHost string `env:"SERVER_HOST" default:"0.0.0.0"`
+	ServerPort int    `env:"SERVER_PORT" default:"8080"`
 
-// SuccessFeeRate - Комиссия за успешную транзакцию (например, 2%).
-const SuccessFeeRate = 0.02
+	// Логи
+	LogLevel string `env:"LOG_LEVEL" default:"info"`
+	LogPlain bool   `env:"LOG_PLAIN" default:"false"`
 
-// CardIssuePrice - Стоимость выпуска одной карты (например, 5.00 USD).
-const CardIssuePrice = 5.00
+	// Telegram (для тикетов и уведомлений)
+	TelegramBotToken string `env:"TELEGRAM_BOT_TOKEN"`
+	TelegramChatID   int64  `env:"TELEGRAM_CHAT_ID"` // основной чат поддержки
 
-// --- Константы JWT ---
+	// Эмитент карт (потом добавим)
+	CardEmitterAPIKey string `env:"CARD_EMITTER_API_KEY"`
+	CardEmitterURL    string `env:"CARD_EMITTER_URL"`
 
-// TokenLifespan - Время жизни JWT-токена.
-const TokenLifespan = time.Hour * 24 * 7 // 7 дней
-
-// --- Константы Базы Данных ---
-// Рекомендуется читать из ENV, но для MVP можно оставить здесь
-// const DatabaseURL = "postgresql://..."
-
-// --- Telegram Configuration ---
-
-// GetTelegramBotToken - Получить токен Telegram бота из ENV.
-func GetTelegramBotToken() string {
-	return os.Getenv("TELEGRAM_BOT_TOKEN")
+	// Дополнительно
+	Debug bool `env:"DEBUG" default:"false"`
 }
 
-// GetTelegramAdminID - Получить ID администратора для уведомлений.
-func GetTelegramAdminID() string {
-	adminID := os.Getenv("TELEGRAM_ADMIN_ID")
-	if adminID == "" {
-		// Fallback на TELEGRAM_CHAT_ID для обратной совместимости
-		return os.Getenv("TELEGRAM_CHAT_ID")
+// Parse — загрузка конфига из окружения + .env файла.
+func Parse() (ENV, error) {
+	cfg := ENV{}
+
+	err := envparse.Process("", &cfg)
+	if err != nil {
+		return ENV{}, wrapper.Wrap(err)
 	}
 
-	return adminID
-}
-
-// GetTelegramChatID - Получить Chat ID для уведомлений (legacy).
-func GetTelegramChatID() string {
-	return os.Getenv("TELEGRAM_CHAT_ID")
+	return cfg, nil
 }

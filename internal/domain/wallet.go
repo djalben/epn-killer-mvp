@@ -5,10 +5,10 @@ import (
 )
 
 type Wallet struct {
-	ID        UUID      `json:"id"`
-	UserID    UUID      `json:"userId"`
-	Balance   Numeric   `json:"balance"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID        UUID      `json:"id" db:"id"`
+	UserID    UUID      `json:"userId" db:"user_id"`
+	Balance   Numeric   `json:"balance" db:"balance"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 }
 
 func NewWallet(userID UUID) *Wallet {

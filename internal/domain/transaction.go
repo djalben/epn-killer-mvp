@@ -5,16 +5,16 @@ import (
 )
 
 type Transaction struct {
-	ID              UUID      `json:"id"`
-	UserID          UUID      `json:"userId"`
-	CardID          *UUID     `json:"cardId,omitempty"`
-	Amount          Numeric   `json:"amount"`
-	Fee             Numeric   `json:"fee"`
-	TransactionType string    `json:"transactionType"`
-	Status          string    `json:"status"`
-	Details         string    `json:"details"`
-	ProviderTxID    string    `json:"providerTxId,omitempty"`
-	ExecutedAt      time.Time `json:"executedAt"`
+	ID              UUID      `json:"id" db:"id"`
+	UserID          UUID      `json:"userId" db:"user_id"`
+	CardID          *UUID     `json:"cardId,omitempty" db:"card_id"`
+	Amount          Numeric   `json:"amount" db:"amount"`
+	Fee             Numeric   `json:"fee" db:"fee"`
+	TransactionType string    `json:"transactionType" db:"transaction_type"`
+	Status          string    `json:"status" db:"status"`
+	Details         string    `json:"details" db:"details"`
+	ProviderTxID    string    `json:"providerTxId,omitempty" db:"provider_tx_id"`
+	ExecutedAt      time.Time `json:"executedAt" db:"executed_at"`
 }
 
 func NewTransaction(

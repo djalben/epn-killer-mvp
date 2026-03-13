@@ -2,28 +2,27 @@ package postgres
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/jmoiron/sqlx"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
-// Connect postgres database.
+// Connect возвращает готовый *sqlx.DB (один раз создаём пул).
 func Connect(ctx context.Context, dsn string) (*sqlx.DB, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("pgx.New DSN = %s error = %w", dsn, err)
+		return nil, wrapper.Wrapf(err, "failed to create pgxpool")
 	}
 
-	pgxPool := stdlib.OpenDBFromPool(pool)
+	pgxDB := stdlib.OpenDBFromPool(pool)
+	db := sqlx.NewDb(pgxDB, "pgx")
 
-	database := sqlx.NewDb(pgxPool, "pgx")
-
-	err = database.PingContext(ctx)
+	err = db.PingContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("PingContext DSN = %s error = %w", dsn, err)
+		return nil, wrapper.Wrapf(err, "failed to ping database")
 	}
 
-	return database, nil
+	return db, nil
 }

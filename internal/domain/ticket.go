@@ -11,16 +11,16 @@ const (
 )
 
 type Ticket struct {
-	ID          UUID         `json:"id"`
-	UserID      UUID         `json:"userId"`
-	AdminID     *UUID        `json:"adminId,omitempty"`
-	TGChatID    *int64       `json:"tgChatId,omitempty"`
-	Subject     string       `json:"subject"`
-	Status      TicketStatus `json:"status"`
-	UserMessage string       `json:"userMessage"`
-	AdminReply  string       `json:"adminReply,omitempty"`
-	CreatedAt   time.Time    `json:"createdAt"`
-	ClosedAt    *time.Time   `json:"closedAt,omitempty"`
+	ID          UUID         `json:"id" db:"id"`
+	UserID      UUID         `json:"userId" db:"user_id"`
+	AdminID     *UUID        `json:"adminId,omitempty" db:"admin_id"`
+	TGChatID    *int64       `json:"tgChatId,omitempty" db:"tg_chat_id"`
+	Subject     string       `json:"subject" db:"subject"`
+	Status      TicketStatus `json:"status" db:"status"`
+	UserMessage string       `json:"userMessage" db:"user_message"`
+	AdminReply  string       `json:"adminReply,omitempty" db:"admin_reply"`
+	CreatedAt   time.Time    `json:"createdAt" db:"created_at"`
+	ClosedAt    *time.Time   `json:"closedAt,omitempty" db:"closed_at"`
 }
 
 func NewTicket(userID UUID, subject, message string, tgChatID *int64) *Ticket {

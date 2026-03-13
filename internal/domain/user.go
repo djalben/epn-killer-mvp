@@ -5,15 +5,15 @@ import (
 )
 
 type User struct {
-	ID             UUID       `json:"id"`
-	Email          string     `json:"email"`
-	PasswordHash   string     `json:"-"`
-	KYCStatus      KYCStatus  `json:"kycStatus"`
-	Status         UserStatus `json:"status"`
-	TelegramChatID *int64     `json:"telegramChatId,omitempty"`
-	ReferralCode   string     `json:"referralCode"`
-	ReferredBy     *UUID      `json:"referredBy,omitempty"`
-	CreatedAt      time.Time  `json:"createdAt"`
+	ID             UUID       `json:"id" db:"id"`
+	Email          string     `json:"email" db:"email"`
+	PasswordHash   string     `json:"-" db:"-"`
+	KYCStatus      KYCStatus  `json:"kycStatus" db:"kyc_status"`
+	Status         UserStatus `json:"status" db:"status"`
+	TelegramChatID *int64     `json:"telegramChatId,omitempty" db:"telegram_chat_id"`
+	ReferralCode   string     `json:"referralCode" db:"referral_code"`
+	ReferredBy     *UUID      `json:"referredBy,omitempty" db:"referred_by"`
+	CreatedAt      time.Time  `json:"createdAt" db:"created_at"`
 }
 
 type (
