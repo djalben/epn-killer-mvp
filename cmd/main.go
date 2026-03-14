@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors" // ← добавлен для errors.Is
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,26 +12,27 @@ import (
 	"github.com/djalben/epn-killer-mvp/internal/app"
 	"github.com/djalben/epn-killer-mvp/internal/config"
 	logHandler "github.com/djalben/epn-killer-mvp/internal/infrastructure/logger/handler"
+	httpServer "github.com/djalben/epn-killer-mvp/internal/transport/http"
+	"gitlab.com/libs-artifex/wrapper/v2"
 )
 
 func main() {
-	// Загружаем конфиг
 	cfg, err := config.Parse()
 	if err != nil {
-		// на этом этапе ещё нет логгера — используем обычный вывод
 		panic("failed to parse config: " + err.Error())
 	}
 
-	// Создаём логгер (чисто, без Prometheus)
+	// Логгер
 	handler := logHandler.Create(cfg.LogPlain, cfg.LogLevel)
 	logger := slog.New(handler)
 
 	logger.Info("🚀 Starting XPLR...")
 
-	// Создаём контейнер
+	// Контейнер
 	container, err := app.NewContainer(&cfg)
 	if err != nil {
 		logger.Error("failed to create container", "error", err)
+
 		os.Exit(1)
 	}
 
@@ -40,17 +43,18 @@ func main() {
 		}
 	}()
 
-	logger.Info("XPLR started successfully",
-		"host", cfg.ServerHost,
-		"port", cfg.ServerPort,
-	)
+	// Запуск HTTP-сервера
+	server := httpServer.NewServer(container, cfg.ServerHost, cfg.ServerPort)
+
+	go func() {
+		err := server.Start()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Error("server failed", "error", wrapper.Wrap(err))
+		}
+	}()
 
 	// Graceful shutdown
-	ctx, cancel := signal.NotifyContext(
-		context.Background(),
-		syscall.SIGINT,
-		syscall.SIGTERM,
-	)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	<-ctx.Done()
